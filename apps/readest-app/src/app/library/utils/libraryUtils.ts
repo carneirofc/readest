@@ -202,6 +202,16 @@ const getCalibreColumnsText = (item: Book) =>
     .map(({ name, value }) => `${name} ${Array.isArray(value) ? value.join(' ') : value}`)
     .join(' ');
 
+// Series, publisher and CBZ ComicInfo fields (artists, characters, story arc…).
+const getMetadataText = (item: Book) =>
+  [
+    item.metadata?.series,
+    item.metadata?.publisher,
+    ...Object.values(item.metadata?.comicInfo ?? {}),
+  ]
+    .filter(Boolean)
+    .join(' ');
+
 const normalizeValues = (values: string[]): string[] => [
   ...new Set(values.map((value) => value.trim()).filter(Boolean)),
 ];
@@ -270,7 +280,8 @@ export const createBookFilter = (queryTerm: string | null) => (item: Book) => {
       (item.metadata?.description &&
         item.metadata.description.toLowerCase().includes(lowerQuery)) ||
       getBookValuesText(item).toLowerCase().includes(lowerQuery) ||
-      getCalibreColumnsText(item).toLowerCase().includes(lowerQuery)
+      getCalibreColumnsText(item).toLowerCase().includes(lowerQuery) ||
+      getMetadataText(item).toLowerCase().includes(lowerQuery)
     );
   }
   const title = formatTitle(item.title);
@@ -282,7 +293,8 @@ export const createBookFilter = (queryTerm: string | null) => (item: Book) => {
     (item.groupName && searchTerm.test(item.groupName)) ||
     (item.metadata?.description && searchTerm.test(item.metadata?.description)) ||
     searchTerm.test(getBookValuesText(item)) ||
-    searchTerm.test(getCalibreColumnsText(item))
+    searchTerm.test(getCalibreColumnsText(item)) ||
+    searchTerm.test(getMetadataText(item))
   );
 };
 

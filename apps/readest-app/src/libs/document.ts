@@ -97,6 +97,8 @@ export type BookMetadata = {
   coverImageBlobUrl?: string;
 
   calibreColumns?: CalibreCustomColumn[];
+  // CBZ ComicInfo.xml free-text fields (Penciller, Characters, StoryArc…), keyed by element name.
+  comicInfo?: Record<string, string>;
   feedUrl?: string;
 
   // Audiobookshelf mirrors. An ABS stub is fileless: its identity is the

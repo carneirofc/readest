@@ -134,6 +134,11 @@ describe('Calibre series metadata', () => {
   <Manga>Yes</Manga>
   <LanguageISO>en</LanguageISO>
   <Translator>Example Translator</Translator>
+  <Penciller>Example Penciller</Penciller>
+  <Characters>Example Hero, Example Villain</Characters>
+  <StoryArc>Example Arc</StoryArc>
+  <Imprint>Example Imprint</Imprint>
+  <Notes></Notes>
   <PageCount>20</PageCount>
 </ComicInfo>`,
       });
@@ -152,6 +157,22 @@ describe('Calibre series metadata', () => {
       });
       const series = getSeries(result.book);
       expect(series).toMatchObject({ name: 'Example Series', position: '1', total: '5' });
+      expect(result.book.metadata.comicInfo).toEqual({
+        Translator: 'Example Translator',
+        Penciller: 'Example Penciller',
+        Characters: 'Example Hero, Example Villain',
+        StoryArc: 'Example Arc',
+        Imprint: 'Example Imprint',
+      });
+    });
+
+    it('leaves comicInfo undefined without extra ComicInfo.xml fields', async () => {
+      const file = await makeCbzFixture({
+        imageCount: 1,
+        comicInfo: '<ComicInfo><Title>Plain</Title></ComicInfo>',
+      });
+      const result = await new DocumentLoader(file).open();
+      expect(result.book.metadata.comicInfo).toBeUndefined();
     });
   });
 });
