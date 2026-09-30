@@ -13,6 +13,7 @@ import { AppService, DeleteAction } from '@/types/system';
 import {
   buildBookLookupIndex,
   collectKnownSourcePaths,
+  isInHiddenDir,
   normalizeFilePathForIndex,
   selectNewImportableFiles,
   toWatchedFolderImports,
@@ -1097,10 +1098,12 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           autoImportGrantedFoldersRef.current.add(folder);
         }
         const items = await appService.readDirectory(folder, 'None', SUPPORTED_BOOK_EXTS);
-        const entries = items.map((item) => ({
-          fullPath: joinScannedPath(folder, item.path),
-          size: item.size,
-        }));
+        const entries = items
+          .filter((item) => !isInHiddenDir(item.path))
+          .map((item) => ({
+            fullPath: joinScannedPath(folder, item.path),
+            size: item.size,
+          }));
         const fresh = selectNewImportableFiles(entries, {
           extensions: SUPPORTED_BOOK_EXTS,
           minSizeBytes: AUTO_IMPORT_MIN_SIZE_BYTES,
@@ -1240,18 +1243,20 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   // Audiobookshelf offline downloads (#6256): the shelf's context menu asks
   // through events so the handlers need not be threaded through every shelf.
   // Removing the copy is "Remove from Device Only".
-  const { handleBookOfflineDownload, offlinePremiumLabel } = useAbsOfflineDownload();
+  const { handleBookOfflineDownload, handleBooksOfflineDownload, offlinePremiumLabel } =
+    useAbsOfflineDownload();
   const offlineHandlersRef = useRef({
-    download: handleBookOfflineDownload,
+    download: handleBooksOfflineDownload,
     remove: handleBookDelete('local'),
   });
   offlineHandlersRef.current = {
-    download: handleBookOfflineDownload,
+    download: handleBooksOfflineDownload,
     remove: handleBookDelete('local'),
   };
   useEffect(() => {
+    // `books` from a select-mode bulk Download, `book` from a context menu.
     const onDownload = (event: CustomEvent) => {
-      offlineHandlersRef.current.download(event.detail.book);
+      offlineHandlersRef.current.download(event.detail.books ?? [event.detail.book]);
     };
     const onRemove = async (event: CustomEvent) => {
       await offlineHandlersRef.current.remove(event.detail.book);
@@ -1279,7 +1284,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
         );
         // Cover-change sync (issue #4544): recompute the cover's content hash.
         // If it actually changed, bump coverHash + coverUpdatedAt so peers
-        // re-download it (the book row already syncs via updatedAt).
+        // re-download it (the book row already syncs via metadataUpdatedAt).
         // computeCoverHash returns null for a '_blank' deletion — we skip the
         // bump there (cover deletion is intentionally not synced; peers keep
         // their cover until a new one is set).
@@ -1786,6 +1791,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     // Re-filter by extension because the JS fallback of readDirectory ignores
     // the extensions argument (only the native Rust walk filters in-scan).
     const filtered = files.filter((file) => {
+      if (isInHiddenDir(file.path)) return false;
       const ext = file.path.split('.').pop()?.toLowerCase() || '';
       if (!exts.includes(ext)) return false;
       if (minSizeBytes > 0 && file.size < minSizeBytes) return false;

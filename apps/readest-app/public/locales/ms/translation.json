@@ -2401,5 +2401,12 @@
   "Follows the theme color": "Mengikut warna tema",
   "Background Style": "Gaya Latar Belakang",
   "Rows": "Baris",
-  "Open Readest to show this bookshelf": "Buka Readest untuk memaparkan rak buku ini"
+  "Open Readest to show this bookshelf": "Buka Readest untuk memaparkan rak buku ini",
+  "Turn on Books in Manage Sync to upload this book": "Hidupkan \"Buku\" dalam \"Urus penyegerakan\" untuk memuat naik buku ini",
+  "Shelf name": "Nama rak",
+  "Hide Bookshelf Buttons": "Sembunyikan Butang Rak Buku",
+  "Previous and Next in the library": "Sebelumnya dan Seterusnya dalam perpustakaan",
+  "Reverse Mouse Wheel": "Terbalikkan Roda Tetikus",
+  "Scroll up for the next page": "Tatal ke atas untuk halaman seterusnya",
+  "Keep Text Selected After Lookup": "Kekalkan teks dipilih selepas carian"
 }

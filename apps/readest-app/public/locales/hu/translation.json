@@ -2461,5 +2461,12 @@
   "Follows the theme color": "Követi a téma színét",
   "Background Style": "Háttérstílus",
   "Rows": "Sorok",
-  "Open Readest to show this bookshelf": "Nyisd meg a Readestet a könyvespolc megjelenítéséhez"
+  "Open Readest to show this bookshelf": "Nyisd meg a Readestet a könyvespolc megjelenítéséhez",
+  "Turn on Books in Manage Sync to upload this book": "A könyv feltöltéséhez kapcsold be a „Könyvek” lehetőséget a „Szinkronizálás kezelése” menüben",
+  "Shelf name": "Polc neve",
+  "Hide Bookshelf Buttons": "Könyvespolc gombjainak elrejtése",
+  "Previous and Next in the library": "Előző és Következő a könyvtárban",
+  "Reverse Mouse Wheel": "Egérgörgő megfordítása",
+  "Scroll up for the next page": "Görgessen felfelé a következő oldalhoz",
+  "Keep Text Selected After Lookup": "Szöveg kijelölve marad keresés után"
 }

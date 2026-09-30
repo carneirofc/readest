@@ -2521,5 +2521,12 @@
   "Follows the theme color": "Urmează culoarea temei",
   "Background Style": "Stil fundal",
   "Rows": "Rânduri",
-  "Open Readest to show this bookshelf": "Deschide Readest pentru a afișa acest raft"
+  "Open Readest to show this bookshelf": "Deschide Readest pentru a afișa acest raft",
+  "Turn on Books in Manage Sync to upload this book": "Activează „Cărți” în „Gestionează sincronizarea” pentru a încărca această carte",
+  "Shelf name": "Numele raftului",
+  "Hide Bookshelf Buttons": "Ascunde butoanele raftului",
+  "Previous and Next in the library": "Anterior și Următorul în bibliotecă",
+  "Reverse Mouse Wheel": "Inversează rotița mouse-ului",
+  "Scroll up for the next page": "Derulează în sus pentru pagina următoare",
+  "Keep Text Selected After Lookup": "Păstrează textul selectat după căutare"
 }

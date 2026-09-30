@@ -23,12 +23,14 @@ data class BookshelfWidgetInstanceSettings(
     val gridRows: Int = BookshelfWidgetStore.DEFAULT_GRID_ROWS,
     val gridColumns: Int = BookshelfWidgetStore.DEFAULT_GRID_COLUMNS,
     val showTitles: Boolean = false,
+    val showShelfName: Boolean = false,
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("shelfId", shelfId)
         .put("gridRows", gridRows)
         .put("gridColumns", gridColumns)
         .put("showTitles", showTitles)
+        .put("showShelfName", showShelfName)
 
     companion object {
         fun fromJson(json: JSONObject): BookshelfWidgetInstanceSettings {
@@ -38,6 +40,7 @@ data class BookshelfWidgetInstanceSettings(
                 gridRows = json.optInt("gridRows", defaults.gridRows),
                 gridColumns = json.optInt("gridColumns", defaults.gridColumns),
                 showTitles = json.optBoolean("showTitles", defaults.showTitles),
+                showShelfName = json.optBoolean("showShelfName", defaults.showShelfName),
             )
         }
     }
@@ -350,6 +353,10 @@ object BookshelfWidgetStore {
     fun writeInstanceSettings(context: Context, appWidgetId: Int, settings: BookshelfWidgetInstanceSettings) {
         writeStr(context, KEY_INSTANCE_SETTINGS_PREFIX, appWidgetId, settings.toJson().toString())
     }
+
+    /** Whether this widget has been configured before, i.e. is already placed. */
+    fun hasInstanceSettings(context: Context, appWidgetId: Int): Boolean =
+        prefs(context).contains(KEY_INSTANCE_SETTINGS_PREFIX + appWidgetId)
 
     fun readInstanceSettings(context: Context, appWidgetId: Int): BookshelfWidgetInstanceSettings {
         val raw = prefs(context).getString(KEY_INSTANCE_SETTINGS_PREFIX + appWidgetId, null)

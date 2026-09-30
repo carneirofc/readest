@@ -196,6 +196,26 @@ export const selectDownloadableBooks = (
   );
 };
 
+/**
+ * The Audiobookshelf audiobooks a bulk Download should keep on the device
+ * (#6256): the expanded selection narrowed to the books the per-book
+ * "Download for Offline" action applies to and that aren't offline yet.
+ */
+export const selectAbsOfflineBooks = (
+  ids: string[],
+  items: (Book | BooksGroup)[],
+  books: Book[],
+): Book[] => {
+  const hashes = new Set(expandBookshelfSelection(ids, items));
+  return books.filter(
+    (book) =>
+      hashes.has(book.hash) &&
+      !book.deletedAt &&
+      isAbsOfflineCapable(book) &&
+      !book.absDownloadedAt,
+  );
+};
+
 // Calibre custom column names and values, flattened for searching (#4811).
 const getCalibreColumnsText = (item: Book) =>
   (item.metadata?.calibreColumns ?? [])
@@ -232,7 +252,8 @@ export interface BookTagEdits {
 
 // Returns a new array where only the books whose tags actually change are new
 // objects. Tags merge with the metadata group on its own clock, so a changed
-// book stamps metadataUpdatedAt like a metadata edit does.
+// book stamps metadataUpdatedAt like a metadata edit does, leaving updatedAt
+// (the Date Read sort key) alone (#6414).
 export const applyBookTagEdits = (
   books: Book[],
   selectedHashes: string[],
@@ -245,7 +266,7 @@ export const applyBookTagEdits = (
     const kept = current.filter((tag) => !edits.remove.includes(tag.trim()));
     const added = edits.add.filter((tag) => !kept.some((k) => k.trim() === tag));
     if (kept.length === current.length && added.length === 0) return book;
-    return { ...book, tags: [...kept, ...added], updatedAt: now, metadataUpdatedAt: now };
+    return { ...book, tags: [...kept, ...added], metadataUpdatedAt: now };
   });
 
 const getBookValuesText = (book: Book): string =>

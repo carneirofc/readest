@@ -13,6 +13,7 @@ import { eventDispatcher } from '@/utils/event';
 import {
   parseAnnotationDeepLink,
   parseBookDeepLink,
+  parseWidgetEditShelfDeepLink,
   parseWidgetGroupDeepLink,
 } from '@/utils/deeplink';
 import { setPendingTTSAutoplay } from '@/utils/ttsAutoplay';
@@ -57,6 +58,7 @@ const releaseLaunchLinkGate = () => useLibraryStore.getState().setCheckPendingLa
  *   readest://book/{hash}/annotation/{id}?cfi=...          a highlight (also the https form
  *   readest://annotation/{hash}/{id}                        and the legacy Readwise one)
  *   readest://widget-group/{groupBy}/{groupId}             a "browse groups" tile tap
+ *   readest://widget-edit-shelf/{shelfId}                  the configure dialog's Edit button
  */
 export function useOpenLaunchLinks() {
   const _ = useTranslation();
@@ -158,6 +160,26 @@ export function useOpenLaunchLinks() {
             );
           }
           // A group opens within the Library, which never unmounts to release the gate.
+          releaseLaunchLinkGate();
+        },
+      };
+    }
+    const editShelf = parseWidgetEditShelfDeepLink(url);
+    if (editShelf) {
+      return {
+        id: 'launchWidgetEditShelfUrls',
+        needsLibrary: false,
+        open: () => {
+          // `t` is a per-tap nonce: BookshelvesDialog's editBookshelf handling
+          // is one-shot (an initial-tab lookup, not a reactive render like
+          // groupBy/group above), so without a value that's guaranteed to
+          // differ from last time, a repeat tap for the same shelf - or one
+          // that arrives while the dialog is already open on a different
+          // shelf - wouldn't be seen as a change and would be dropped.
+          router.push(
+            `/library?editBookshelf=${encodeURIComponent(editShelf.shelfId)}&t=${Date.now()}`,
+          );
+          // Opens within the Library, which never unmounts to release the gate.
           releaseLaunchLinkGate();
         },
       };

@@ -287,6 +287,7 @@ describe('useOpenLaunchLinks — launch URL replayed after a reload (#6104)', ()
 });
 
 const groupUrl = 'readest://widget-group/series/a1b2%20c3';
+const editShelfUrl = 'readest://widget-edit-shelf/sf';
 
 const mountWidget = async (label = 'main') => {
   currentWindowLabel = label;
@@ -340,11 +341,22 @@ describe('useOpenLaunchLinks — widget links', () => {
     expect(routerPushMock).toHaveBeenCalledWith('/library?groupBy=series&group=a1b2%20c3');
   });
 
+  it('opens the bookshelf editor for a tapped Edit button, without waiting for the library', async () => {
+    libraryState.libraryLoaded = false;
+    coldStartUrls = [editShelfUrl];
+    await mountWidget();
+    // Edit always appends a per-tap nonce (`t`), so only the prefix is fixed.
+    expect(routerPushMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/library\?editBookshelf=sf&t=\d+$/),
+    );
+  });
+
   it.each([
     [
       'a group link with an unknown axis',
       ['readest://widget-group/none/x', 'readest://widget-group/bogus/x'],
     ],
+    ['a malformed edit-shelf link', ['readest://widget-edit-shelf/']],
     [
       'links that are not widget links',
       ['readest://book/abc', 'https://web.readest.com/o/widget-group/series/x'],
@@ -361,8 +373,11 @@ describe('useOpenLaunchLinks — widget links', () => {
       expect(libraryState.setCheckPendingLaunchLink).toHaveBeenCalledWith(false);
     });
 
-    it('is released after a group tap, which opens within the Library', async () => {
-      coldStartUrls = [groupUrl];
+    it.each([
+      ['a group tap', groupUrl],
+      ['an edit-shelf tap', editShelfUrl],
+    ])('is released after %s, which opens within the Library', async (_label, url) => {
+      coldStartUrls = [url];
       await mountWidget();
       expect(routerPushMock).toHaveBeenCalled();
       expect(libraryState.setCheckPendingLaunchLink).toHaveBeenCalledWith(false);
