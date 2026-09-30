@@ -100,6 +100,15 @@ jobs:
               "/usr/lib/libxkbcommon-x11.so.0": ($d + "/libxkbcommon-x11.so.0")
             }' "$conf" > "$conf.tmp" && mv "$conf.tmp" "$conf"
 
+      # cef-dll-sys downloads the CEF archive here when CEF_PATH is unset.
+      # Caching it keeps later runs off the network for that download.
+      - name: cache the CEF distribution
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/tauri-cef
+          key: tauri-cef-${{ matrix.config.os }}-${{ matrix.config.arch }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: tauri-cef-${{ matrix.config.os }}-${{ matrix.config.arch }}-
+
       # The analytics and sync secrets are optional: left unset, the
       # variables are empty and those features stay off.
       - name: create .env.local file for Next.js
@@ -122,9 +131,18 @@ jobs:
           # this build with upstream's signed release.
           READEST_DISABLE_UPDATER: '1'
           NODE_OPTIONS: '--max-old-space-size=8192'
+        # The CEF download in cef-dll-sys's build script fails the whole
+        # build when the connection drops ("Peer disconnected"), so retry.
+        # A failed attempt can leave a partial archive behind, which would
+        # then be taken as a complete CEF_PATH, so it is cleared first.
         run: |
           cd apps/readest-app
-          pnpm tauri build --bundles appimage
+          for attempt in 1 2 3; do
+            pnpm tauri build --bundles appimage && exit 0
+            echo "::warning::build attempt $attempt failed"
+            rm -rf "$HOME/.cache/tauri-cef"
+          done
+          exit 1
 
       - name: verify the AppImage bundle contents
         run: |
