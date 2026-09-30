@@ -39,6 +39,8 @@ import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { isWebAppPlatform } from '@/services/environment';
 import { useCustomOPDSStore } from '@/store/customOPDSStore';
+import { useSettingsStore } from '@/store/settingsStore';
+import { getBookOrbitCatalog } from '@/services/bookorbit/catalogFeed';
 import { ensurePassphraseUnlocked } from '@/services/sync/passphraseGate';
 import { isCredentialsSyncEnabled } from '@/services/sync/syncCategories';
 import { isSyncError } from '@/libs/errors';
@@ -357,6 +359,7 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
   const _ = useTranslation();
   const router = useRouter();
   const { envConfig, appService } = useEnv();
+  const bookOrbitCatalog = getBookOrbitCatalog(useSettingsStore((s) => s.settings?.bookorbit));
   // Hydrate the store from settings on mount; all CRUD goes through it
   // so the replica-sync push fires automatically. The local `catalogs`
   // mirror tracks the visible (non-deleted) entries; we keep the
@@ -731,6 +734,38 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
           </DndContext>
         )}
       </section>
+
+      {/* The BookOrbit server set up for sync, browsed with the same login */}
+      {bookOrbitCatalog && (
+        <section className='mb-10 text-base'>
+          <SectionTitle className='mb-3'>{_('BookOrbit')}</SectionTitle>
+          <div className='card eink-bordered bg-base-100 border-base-200 flex flex-col border'>
+            <div className='flex flex-1 flex-col gap-2.5 p-4'>
+              <h4>
+                <button
+                  type='button'
+                  onClick={() => handleOpenCatalog(bookOrbitCatalog)}
+                  className='flex w-full min-w-0 items-center gap-1.5 rounded-xs text-start text-sm font-semibold transition-colors duration-150 hover:underline focus-visible:underline focus-visible:outline-hidden'
+                >
+                  <span className='truncate'>{_('BookOrbit Library')}</span>
+                </button>
+              </h4>
+              <p className='text-base-content/70 line-clamp-2 text-xs leading-relaxed'>
+                {_('Browse your BookOrbit server with the account used for sync')}
+              </p>
+              <div className='border-base-200 mt-auto flex items-center justify-end gap-1 border-t pt-3'>
+                <button
+                  onClick={() => handleOpenCatalog(bookOrbitCatalog)}
+                  className='hover:bg-base-200 focus-visible:ring-base-content/15 inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium transition-colors duration-150 focus-visible:outline-hidden focus-visible:ring-2'
+                >
+                  {_('Browse')}
+                  <MdChevronRight className='h-4 w-4' />
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Popular Catalogs */}
       <section className={clsx('text-base', popularCatalogs.length === 0 && 'hidden')}>

@@ -58,6 +58,11 @@ import {
 } from '@/services/bookorbit/audiobookId';
 import { autoPairBookOrbitAudiobook, loadEbookChapterIds } from '@/services/bookorbit/autoPair';
 import { BookOrbitClient } from '@/services/bookorbit/client';
+import {
+  BOOKORBIT_CATALOG_ID,
+  adaptBookOrbitCatalogJson,
+  getBookOrbitCatalogHeaders,
+} from '@/services/bookorbit/catalogFeed';
 import { pickAudioLinks } from '@/services/opds/audiobook';
 import type { OpdsAudioTrackLink } from '@/services/opds/audiobook';
 import type { Book } from '@/types/book';
@@ -140,6 +145,8 @@ export default function BrowserPage() {
   const usernameRef = useRef<string | null | undefined>(undefined);
   const passwordRef = useRef<string | null | undefined>(undefined);
   const customHeadersRef = useRef<Record<string, string>>({});
+  // The BookOrbit entry browses its JSON catalog API, not an OPDS feed.
+  const isBookOrbitRef = useRef(false);
   const startURLRef = useRef<string | null | undefined>(undefined);
   const loadingOPDSRef = useRef(false);
   const historyIndexRef = useRef(-1);
@@ -354,6 +361,12 @@ export default function BrowserPage() {
           } catch {
             throw new Error(_('Content is neither valid XML nor JSON'));
           }
+          if (isBookOrbitRef.current) {
+            feed = adaptBookOrbitCatalogJson(feed, url);
+            if (!feed || !('navigation' in feed || 'publications' in feed)) {
+              throw new Error(_('Unexpected response from BookOrbit'));
+            }
+          }
           const newState = {
             feed,
             baseURL: responseURL,
@@ -399,7 +412,10 @@ export default function BrowserPage() {
         usernameRef.current = null;
         passwordRef.current = null;
       }
-      customHeadersRef.current = normalizeCustomHeaders(catalog?.customHeaders);
+      isBookOrbitRef.current = catalogId === BOOKORBIT_CATALOG_ID && !!settings.bookorbit;
+      customHeadersRef.current = isBookOrbitRef.current
+        ? getBookOrbitCatalogHeaders(settings.bookorbit)
+        : normalizeCustomHeaders(catalog?.customHeaders);
       if (libraryLoaded) {
         lastLoadedKeyRef.current = loadKey;
         loadOPDS(url);
@@ -506,6 +522,10 @@ export default function BrowserPage() {
         const res = await fetchWithAuth(url, username, password, useProxy, {}, customHeaders);
         if (!res.ok) return null;
         const text = await res.text();
+        if (isBookOrbitRef.current) {
+          const publication = adaptBookOrbitCatalogJson(JSON.parse(text), url);
+          return publication && 'images' in publication ? publication : null;
+        }
         return parsePublicationDocument(text, res.url);
       } catch (e) {
         console.warn('Failed to load OPDS publication document:', e);
