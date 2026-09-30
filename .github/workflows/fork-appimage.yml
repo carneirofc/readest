@@ -132,14 +132,20 @@ jobs:
           READEST_DISABLE_UPDATER: '1'
           NODE_OPTIONS: '--max-old-space-size=8192'
         # The CEF download in cef-dll-sys's build script fails the whole
-        # build when the connection drops ("Peer disconnected"), so retry.
-        # A failed attempt can leave a partial archive behind, which would
-        # then be taken as a complete CEF_PATH, so it is cleared first.
+        # build when the connection drops ("Peer disconnected"), so retry,
+        # but only for network errors: anything else fails the same way
+        # every time. A failed download can leave a partial archive behind,
+        # which would then be taken as a complete CEF_PATH, so it is
+        # cleared first.
         run: |
+          set -o pipefail
           cd apps/readest-app
+          log="$RUNNER_TEMP/tauri-build.log"
           for attempt in 1 2 3; do
-            pnpm tauri build --bundles appimage && exit 0
-            echo "::warning::build attempt $attempt failed"
+            pnpm tauri build --bundles appimage 2>&1 | tee "$log" && exit 0
+            grep -qE 'Peer disconnected|Connection reset|timed out|error sending request' "$log" \
+              || exit 1
+            echo "::warning::build attempt $attempt hit a network error, retrying"
             rm -rf "$HOME/.cache/tauri-cef"
           done
           exit 1
