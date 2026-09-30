@@ -318,7 +318,8 @@ fn undecorated_shadow_is_symmetric() -> bool {
 // Pure decision for whether the in-app updater should be hidden. Kept
 // dependency-free so it can be unit tested for every platform combination.
 //
-// - `env_disable`: READEST_DISABLE_UPDATER is set (explicit opt-out).
+// - `env_disable`: READEST_DISABLE_UPDATER is set at run time, or was set at
+//   build time for builds that must never self-update (explicit opt-out).
 // - Linux only: Tauri's updater can self-update AppImage bundles *only*, so
 //   deb/rpm/pacman (`!is_appimage`) and Flatpak installs are updated by the
 //   system package manager and must not show the in-app updater.
@@ -334,7 +335,8 @@ fn compute_updater_disabled(
 
 #[cfg(desktop)]
 fn updater_disabled() -> bool {
-    let env_disable = std::env::var("READEST_DISABLE_UPDATER").is_ok();
+    let env_disable = option_env!("READEST_DISABLE_UPDATER").is_some()
+        || std::env::var("READEST_DISABLE_UPDATER").is_ok();
     #[cfg(target_os = "linux")]
     {
         let is_flatpak =

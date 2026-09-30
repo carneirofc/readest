@@ -118,6 +118,9 @@ jobs:
           TAURI_CEF_CARGO: '1'
           # See release.yml.
           STRACE_MODE: '0'
+          # Baked in at compile time: the updater would otherwise replace
+          # this build with upstream's signed release.
+          READEST_DISABLE_UPDATER: '1'
           NODE_OPTIONS: '--max-old-space-size=8192'
         run: |
           cd apps/readest-app
