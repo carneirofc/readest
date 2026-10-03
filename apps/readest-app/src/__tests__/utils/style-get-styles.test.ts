@@ -8,7 +8,7 @@ vi.mock('@/utils/misc', async (importOriginal) => {
   };
 });
 
-import { getStyles, LINK_TOUCH_HOLD_CLASS, ThemeCode } from '@/utils/style';
+import { getStyles, LINK_TOUCH_HOLD_CLASS, TEXT_SELECTED_CLASS, ThemeCode } from '@/utils/style';
 import { CustomFont } from '@/styles/fonts';
 import { ViewSettings } from '@/types/book';
 import {
@@ -630,6 +630,17 @@ describe('getColorStyles branches (via getStyles)', () => {
     expect(css).not.toContain('::-moz-selection');
   });
 
+  // Chromium's default selection paints near-black text, unreadable on a dark
+  // page (#6503). A background-only rule keeps each element's own text color.
+  it('gives dark mode a theme selection background without forcing a text color', () => {
+    const vs = makeViewSettings({ isEink: false });
+    const theme = makeThemeCode({ isDarkMode: true, bg: '#222222', fg: '#e0e0e0' });
+    const css = getStyles(vs, theme);
+    const rule = css.match(/::selection\s*{([^}]*)}/);
+    expect(rule?.[1]).toContain('background: color-mix(in srgb, #3366cc 40%, transparent)');
+    expect(rule?.[1]).not.toMatch(/(^|[\s;])color:/);
+  });
+
   it('sets text-decoration to underline for links when isEink is true', () => {
     const vs = makeViewSettings({ isEink: true });
     const theme = makeThemeCode();
@@ -1008,6 +1019,17 @@ describe('link touch hold (#6242)', () => {
       new RegExp(
         `html\\.${LINK_TOUCH_HOLD_CLASS} a\\[href\\]\\s*\\{\\s*pointer-events: none !important;`,
       ),
+    );
+  });
+});
+
+describe('link hit area during a text selection (#6566)', () => {
+  it('takes the enlarged link hit area out of hit testing while text is selected', () => {
+    // The empty a::before box spreads 10px around each link and swallows the
+    // text there, so dragging a selection onto a footnote's neighbor snapped it.
+    const css = getStyles(makeViewSettings(), makeThemeCode());
+    expect(css).toMatch(
+      new RegExp(`html\\.${TEXT_SELECTED_CLASS} a::before\\s*\\{\\s*pointer-events: none;`),
     );
   });
 });

@@ -297,6 +297,12 @@ const layoutPanelItems = [
     section: 'Page',
   },
   {
+    id: 'settings.layout.columnGap',
+    labelKey: _('Column Gap (px)'),
+    keywords: ['column', 'gap', 'gutter', 'spine', 'spread', 'two', 'dual'],
+    section: 'Page',
+  },
+  {
     id: 'settings.layout.maxColumnCount',
     labelKey: _('Maximum Number of Columns'),
     keywords: ['column', 'columns', 'max', 'count', 'multi'],
@@ -522,6 +528,12 @@ const controlPanelItems = [
     id: 'settings.control.colorEinkMode',
     labelKey: _('Color E-Ink Mode'),
     keywords: ['color', 'eink', 'e-ink', 'kaleido'],
+    section: 'Device',
+  },
+  {
+    id: 'settings.control.autoFullRefresh',
+    labelKey: _('Auto Full Refresh'),
+    keywords: ['eink', 'e-ink', 'ghosting', 'full', 'refresh', 'interval', 'pages'],
     section: 'Device',
   },
   {

@@ -241,6 +241,17 @@ const getEinkSelectionStyles = () => {
   `;
 };
 
+// Chromium's default selection colors force near-black text (on blue when
+// focused, on grey when not), unreadable on a dark page — most visibly on the
+// selection a lookup popup holds while it has focus (#6503). Setting only the
+// background keeps each element's own text color, and pdf.js's transparent
+// text layer stays transparent.
+const getDarkSelectionStyles = (primary: string) => `
+    ::selection {
+      background: color-mix(in srgb, ${primary} 40%, transparent);
+    }
+  `;
+
 const getDialogueHighlightStyles = (viewSettings: ViewSettings, themeCode: ThemeCode) => {
   // Background and text are independent switches; off means the default
   // (theme primary tint for the background, inherited text). An empty stored
@@ -270,6 +281,20 @@ const getDialogueHighlightStyles = (viewSettings: ViewSettings, themeCode: Theme
   }
   .readest-dialogue-block {${bgDecl(12)}${text}
     border-radius: 0.3em;
+  }${
+    viewSettings.dialogueHighlightItalic
+      ? `
+  /* Italic runs marked like quoted dialogue; nested marks drop their own
+     tint so overlapping translucent backgrounds don't stack. */
+  :is(i, em) {${bgDecl(22)}${text}
+    border-radius: 0.2em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+  :is(i, em) :is(i, em, .readest-dialogue), .readest-dialogue :is(i, em) {
+    background-color: transparent !important;
+  }`
+      : ''
   }
 `;
 };
@@ -295,7 +320,7 @@ const getColorStyles = (
     html, body {
       color: ${fg};
     }
-    ${isEink ? getEinkSelectionStyles() : ''}
+    ${isEink ? getEinkSelectionStyles() : isDarkMode ? getDarkSelectionStyles(primary) : ''}
     html[has-background], body[has-background] {
       --background-set: var(--theme-bg-color);
     }
@@ -414,6 +439,7 @@ const getColorStyles = (
 };
 
 export const LINK_TOUCH_HOLD_CLASS = 'link-touch-hold';
+export const TEXT_SELECTED_CLASS = 'text-selected';
 
 const getPageLayoutStyles = (
   marginTop: number,
@@ -471,6 +497,11 @@ const getPageLayoutStyles = (
     content: '';
     position: absolute;
     inset: -10px;
+  }
+  /* the enlarged area swallows the text around a link, so a selection dragged
+     next to a footnote marker snaps away (#6566); set while text is selected */
+  html.${TEXT_SELECTED_CLASS} a::before {
+    pointer-events: none;
   }
 
   .${SCROLL_WRAPPER_CLASS} {
@@ -1664,6 +1695,20 @@ export const getOverlayerBlendMode = ({
   return isDarkPage ? 'screen' : 'multiply';
 };
 
+/**
+ * The colors the PDF renderer recolors pages to, or undefined to leave pages as
+ * the book has them. Embedded photos keep their own colors unless images are to
+ * be inverted in dark mode too (#6548).
+ */
+export const getPDFPageColors = (viewSettings: ViewSettings, themeCode: ThemeCode) =>
+  viewSettings.applyThemeToPDF
+    ? {
+        background: themeCode.bg,
+        foreground: themeCode.fg,
+        keepImages: !(themeCode.isDarkMode && viewSettings.invertImgColorInDark),
+      }
+    : undefined;
+
 export const applyFixedlayoutStyles = (
   document: Document,
   viewSettings: ViewSettings,
@@ -1684,7 +1729,14 @@ export const applyFixedlayoutStyles = (
   const invertImgColorInDark = viewSettings.invertImgColorInDark!;
   const contrast = viewSettings.contrast ?? 100;
   const imgFilters: string[] = [];
-  if (isDarkMode && invertImgColorInDark) imgFilters.push('invert(100%)');
+  // The renderer already recolors a themed PDF page, images included when they
+  // are to be inverted; inverting or blending it again would darken or flip the
+  // theme colors (#6548).
+  const isThemedPDF = format === 'PDF' && viewSettings.applyThemeToPDF;
+  // hue-rotate flips the hues back, so a blue link stays blue
+  if (isDarkMode && invertImgColorInDark && !isThemedPDF) {
+    imgFilters.push('invert(100%) hue-rotate(180deg)');
+  }
   if (contrast !== 100) imgFilters.push(`contrast(${contrast}%)`);
   const imgFilter = imgFilters.length ? `filter: ${imgFilters.join(' ')};` : '';
   const darkMixBlendMode = bg === '#000000' ? 'luminosity' : 'overlay';
@@ -1719,10 +1771,16 @@ export const applyFixedlayoutStyles = (
     }
     img, canvas {
       ${imgFilter}
-      ${overrideColor ? `mix-blend-mode: ${isDarkMode ? darkMixBlendMode : 'multiply'};` : ''}
+      ${overrideColor && !isThemedPDF ? `mix-blend-mode: ${isDarkMode ? darkMixBlendMode : 'multiply'};` : ''}
     }
     img.singlePage {
       position: relative;
+    }
+    /* An unsized <image> draws at its natural size, which is the page size,
+       but a percentage-height svg in an auto-height block is only 150px tall
+       and would clip it to a strip (#6530). */
+    svg:not([viewBox]):has(> image:not([width])) {
+      overflow: visible;
     }
   `;
   document.head.appendChild(style);

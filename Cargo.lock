@@ -84,7 +84,9 @@ dependencies = [
  "tokio-util",
  "uuid 1.26.0",
  "walkdir",
+ "windows 0.61.3",
  "winreg 0.52.0",
+ "zbus 5.19.0",
  "zip 2.4.2",
 ]
 
@@ -8483,7 +8485,10 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-plugin",
+ "tauri-runtime-cef",
  "thiserror 2.0.20",
+ "webview2-com",
+ "windows-core 0.61.2",
  "windows-native-keyring-store",
 ]
 
