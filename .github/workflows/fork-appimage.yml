@@ -1,14 +1,16 @@
-# Fork build: publish the Linux CEF AppImage of feat/bookorbit-catalog as a
-# rolling GitHub prerelease on carneirofc/readest. The build steps follow
-# try-appimage.yml (kept in sync by hand); the differences are that updater
-# artifacts are switched off, since the fork has no TAURI_SIGNING_PRIVATE_KEY,
-# and that the AppImages are published instead of kept as workflow artifacts.
+# Fork build: publish the Linux CEF AppImage of main and
+# feat/bookorbit-catalog as a rolling GitHub prerelease per branch on
+# carneirofc/readest. The build steps follow try-appimage.yml (kept in sync
+# by hand); the differences are that updater artifacts are switched off,
+# since the fork has no TAURI_SIGNING_PRIVATE_KEY, and that the AppImages
+# are published as a prerelease on top of the workflow artifacts.
 name: Fork AppImage
 
 on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - feat/bookorbit-catalog
 
 concurrency:
