@@ -1,0 +1,190 @@
+# Maintainer: carneirofc <claudiofcarneiro@gmail.com>
+#
+# Builds Readest from source on the CEF runtime, the same way upstream's
+# Linux release does (`pnpm tauri build`, see apps/readest-app/scripts/tauri.mjs)
+# and modelled on nix/package.nix.
+#
+# Notes:
+# - build() needs network access: `pnpm tauri` fetches @tauri-apps/cli-cef
+#   with `pnpm dlx`, and cargo fetches the tauri feat/cef git dependencies.
+# - The NEXT_PUBLIC_SUPABASE_* / NEXT_PUBLIC_POSTHOG_* keys of the official
+#   builds are not available, so accounts and cloud sync do not work; local
+#   reading does.
+# - When bumping pkgver, check that the CEF distribution below still matches
+#   the cef-dll-sys version in Cargo.cef.lock (151.x.y+<cef version>).
+
+pkgname=readest
+pkgver=0.12.10
+pkgrel=1
+pkgdesc='Modern, feature-rich ebook reader'
+arch=(x86_64 aarch64)
+url='https://github.com/readest/readest'
+license=(AGPL-3.0-or-later)
+depends=(
+  alsa-lib
+  at-spi2-core
+  dbus
+  expat
+  fontconfig
+  gdk-pixbuf2
+  glib2
+  gst-plugins-base
+  gst-plugins-good
+  gtk3
+  hicolor-icon-theme
+  libcups
+  libx11
+  libxcb
+  libxcomposite
+  libxcursor
+  libxdamage
+  libxext
+  libxfixes
+  libxi
+  libxkbcommon-x11
+  libxrandr
+  mesa
+  nspr
+  nss
+  systemd-libs
+)
+makedepends=(
+  cargo
+  git
+  librsvg
+  nodejs
+  openssl
+  pkgconf
+  pnpm
+  # Some plugins still enable tauri's `wry` feature, so the WebKitGTK
+  # bindings are compiled; --as-needed drops them from the binary.
+  webkit2gtk-4.1
+)
+optdepends=('gst-plugins-bad: additional text-to-speech codecs')
+options=(!lto !debug)
+
+_cef=cef_binary_151.3.24+g2384915+chromium-151.0.7922.174
+source=(
+  "$pkgname::git+$url.git#tag=v$pkgver"
+  'foliate-js::git+https://github.com/readest/foliate-js.git'
+  'tauri::git+https://github.com/readest/tauri.git'
+  'simplecc-wasm::git+https://github.com/readest/simplecc-wasm.git'
+  'qcms::git+https://github.com/mozilla/pdf.js.qcms.git'
+  'js-mdict::git+https://github.com/readest/js-mdict.git'
+  'tauri-plugin-turso::git+https://github.com/readest/tauri-plugin-turso.git'
+  'tauri-plugin-webview-upgrade::git+https://github.com/readest/tauri-plugin-webview-upgrade.git'
+)
+source_x86_64=("https://cef-builds.spotifycdn.com/${_cef//+/%2B}_linux64_minimal.tar.bz2")
+source_aarch64=("https://cef-builds.spotifycdn.com/${_cef//+/%2B}_linuxarm64_minimal.tar.bz2")
+noextract=("${_cef//+/%2B}_linux64_minimal.tar.bz2" "${_cef//+/%2B}_linuxarm64_minimal.tar.bz2")
+sha256sums=('SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP')
+sha256sums_x86_64=('db53c43fdace8b7ee4af0f005120116d6973aa9d8eb7702c0617badf9be8684e')
+sha256sums_aarch64=('47965b9c36a5958bdd6d6fdb3fe3360f38d17d65914ef636abade14881cdc59b')
+
+# Submodule path in the readest repo -> source name above. The gstack
+# submodule (a dev-only Claude skill) is left out.
+_submodules=(
+  packages/foliate-js:foliate-js
+  packages/tauri:tauri
+  packages/simplecc-wasm:simplecc-wasm
+  packages/qcms:qcms
+  packages/js-mdict:js-mdict
+  apps/readest-app/src-tauri/plugins/tauri-plugin-turso:tauri-plugin-turso
+  apps/readest-app/src-tauri/plugins/tauri-plugin-webview-upgrade:tauri-plugin-webview-upgrade
+)
+
+_cef_archive() {
+  case $CARCH in
+    x86_64) echo "${_cef}_linux64_minimal.tar.bz2" ;;
+    aarch64) echo "${_cef}_linuxarm64_minimal.tar.bz2" ;;
+  esac
+}
+
+prepare() {
+  cd "$pkgname"
+
+  local entry path name
+  for entry in "${_submodules[@]}"; do
+    path=${entry%%:*}
+    name=${entry#*:}
+    git submodule init "$path"
+    git config "submodule.$path.url" "$srcdir/$name"
+    git -c protocol.file.allow=always submodule update "$path"
+  done
+
+  # Same tweaks as nix/package.nix: no Sentry upload, no updater signing,
+  # and no self-update checks (pacman handles updates).
+  local conf=apps/readest-app/src-tauri/tauri.conf.json
+  sed -i \
+    -e 's|"beforeBuildCommand": "pnpm build && pnpm upload-sourcemaps"|"beforeBuildCommand": "pnpm build"|' \
+    -e 's|"createUpdaterArtifacts": true|"createUpdaterArtifacts": false|' \
+    "$conf"
+  grep -q '"beforeBuildCommand": "pnpm build"' "$conf"
+  grep -q '"createUpdaterArtifacts": false' "$conf"
+  sed -i 's/autoCheckUpdates: true/autoCheckUpdates: false/' apps/readest-app/src/services/constants.ts
+  grep -q 'autoCheckUpdates: false' apps/readest-app/src/services/constants.ts
+
+  # Lay the CEF distribution out the way the cef crate's download-cef caches
+  # it, so cef-dll-sys links against it instead of downloading.
+  local archive cef_file
+  archive=$(_cef_archive)
+  cef_file=${archive//+/%2B}
+  rm -rf "$srcdir/cef"
+  mkdir -p "$srcdir/cef"
+  tar -xjf "$srcdir/$cef_file" --strip-components=1 -C "$srcdir/cef"
+  mv "$srcdir"/cef/Release/* "$srcdir"/cef/Resources/* "$srcdir/cef/"
+  printf '{"type": "minimal", "name": "%s", "sha1": "%s"}\n' \
+    "$archive" "$(sha1sum "$srcdir/$cef_file" | cut -d' ' -f1)" > "$srcdir/cef/archive.json"
+
+  pnpm install --frozen-lockfile
+  # Not a workspace member; it has its own lockfile.
+  pnpm --dir apps/readest-app/src-tauri/plugins/tauri-plugin-turso --ignore-workspace install --frozen-lockfile
+}
+
+build() {
+  cd "$pkgname"
+
+  export CEF_PATH="$srcdir/cef"
+  export CARGO_HOME="$srcdir/cargo-home"
+  export NODE_OPTIONS='--max-old-space-size=8192'
+  export NEXT_TELEMETRY_DISABLED=1
+  # Keep build paths (crate sources live under $CARGO_HOME) out of the binary.
+  export RUSTFLAGS="${RUSTFLAGS:-} --remap-path-prefix=$srcdir=/build"
+
+  pnpm --dir apps/readest-app/src-tauri/plugins/tauri-plugin-turso --ignore-workspace build
+
+  cd apps/readest-app
+  pnpm setup-vendors
+  pnpm tauri build --bundles deb
+}
+
+package() {
+  cd "$pkgname"
+
+  local data
+  data=$(echo target/release/bundle/deb/*/data)
+  [[ -d $data ]] || { echo "deb bundle data not found" >&2; return 1; }
+  cp -a "$data"/. "$pkgdir/"
+
+  # Tauri names the 128x128@2x icon's directory 256x256@2, which is not a
+  # hicolor size; move it where icon themes look.
+  local icons="$pkgdir/usr/share/icons/hicolor"
+  if [[ -d $icons/256x256@2 ]]; then
+    mkdir -p "$icons/256x256"
+    mv "$icons/256x256@2/apps" "$icons/256x256/"
+    rmdir "$icons/256x256@2"
+  fi
+
+  if ! compgen -G "$pkgdir/usr/share/metainfo/*" > /dev/null; then
+    install -Dm644 data/metainfo/appdata.xml \
+      "$pkgdir/usr/share/metainfo/com.bilingify.readest.metainfo.xml"
+  fi
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
