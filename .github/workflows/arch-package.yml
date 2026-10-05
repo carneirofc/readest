@@ -9,6 +9,8 @@
 #   [readest]
 #   SigLevel = Optional TrustAll
 #   Server = https://github.com/carneirofc/readest/releases/download/arch-repo
+#
+# and install it with `pacman -Sy readest-carneirofc` (it replaces `readest`).
 name: Arch Package
 
 on:
@@ -130,6 +132,8 @@ jobs:
           SigLevel = Optional TrustAll
           Server = $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$tag
           \`\`\`
+
+          then run \`sudo pacman -Sy ${pkg%%-[0-9]*}\` (it replaces \`readest\`).
           EOF
           )"
           echo "Published $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"

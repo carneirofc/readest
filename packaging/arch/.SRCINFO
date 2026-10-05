@@ -1,7 +1,7 @@
-pkgbase = readest
+pkgbase = readest-carneirofc
 	pkgdesc = Modern, feature-rich ebook reader
 	pkgver = 0.12.10
-	pkgrel = 2
+	pkgrel = 1
 	url = https://github.com/readest/readest
 	arch = x86_64
 	arch = aarch64
@@ -42,6 +42,8 @@ pkgbase = readest
 	depends = nss
 	depends = systemd-libs
 	optdepends = gst-plugins-bad: additional text-to-speech codecs
+	provides = readest
+	conflicts = readest
 	noextract = cef_binary_151.3.24%2Bg2384915%2Bchromium-151.0.7922.174_linux64_minimal.tar.bz2
 	noextract = cef_binary_151.3.24%2Bg2384915%2Bchromium-151.0.7922.174_linuxarm64_minimal.tar.bz2
 	options = !lto
@@ -67,4 +69,4 @@ pkgbase = readest
 	source_aarch64 = https://cef-builds.spotifycdn.com/cef_binary_151.3.24%2Bg2384915%2Bchromium-151.0.7922.174_linuxarm64_minimal.tar.bz2
 	sha256sums_aarch64 = 47965b9c36a5958bdd6d6fdb3fe3360f38d17d65914ef636abade14881cdc59b
 
-pkgname = readest
+pkgname = readest-carneirofc
