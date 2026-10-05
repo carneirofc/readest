@@ -10,10 +10,13 @@
 # - The NEXT_PUBLIC_SUPABASE_* / NEXT_PUBLIC_POSTHOG_* keys of the official
 #   builds are not available, so accounts and cloud sync do not work; local
 #   reading does.
+# - Packaged by the carneirofc/readest fork under its own name so it does not
+#   clash with distribution packages; it provides and replaces `readest`.
 # - When bumping pkgver, check that the CEF distribution below still matches
 #   the cef-dll-sys version in Cargo.cef.lock (151.x.y+<cef version>).
 
-pkgname=readest
+pkgname=readest-carneirofc
+_pkgname=readest
 pkgver=0.12.10
 pkgrel=1
 pkgdesc='Modern, feature-rich ebook reader'
@@ -62,11 +65,13 @@ makedepends=(
   webkit2gtk-4.1
 )
 optdepends=('gst-plugins-bad: additional text-to-speech codecs')
+provides=(readest)
+conflicts=(readest)
 options=(!lto !debug)
 
 _cef=cef_binary_151.3.24+g2384915+chromium-151.0.7922.174
 source=(
-  "$pkgname::git+$url.git#tag=v$pkgver"
+  "$_pkgname::git+$url.git#tag=v$pkgver"
   'foliate-js::git+https://github.com/readest/foliate-js.git'
   'tauri::git+https://github.com/readest/tauri.git'
   'simplecc-wasm::git+https://github.com/readest/simplecc-wasm.git'
@@ -109,7 +114,7 @@ _cef_archive() {
 }
 
 prepare() {
-  cd "$pkgname"
+  cd "$_pkgname"
 
   local entry path name
   for entry in "${_submodules[@]}"; do
@@ -150,7 +155,7 @@ prepare() {
 }
 
 build() {
-  cd "$pkgname"
+  cd "$_pkgname"
 
   export CEF_PATH="$srcdir/cef"
   export CARGO_HOME="$srcdir/cargo-home"
@@ -167,7 +172,7 @@ build() {
 }
 
 package() {
-  cd "$pkgname"
+  cd "$_pkgname"
 
   local data
   data=$(echo target/release/bundle/deb/*/data)
@@ -182,6 +187,11 @@ package() {
     mv "$icons/256x256@2/apps" "$icons/256x256/"
     rmdir "$icons/256x256@2"
   fi
+
+  # The metainfo's launchable (and the CachyOS/Flathub packages) use the
+  # app id as the desktop file name; Tauri names it after productName.
+  mv "$pkgdir/usr/share/applications/Readest.desktop" \
+    "$pkgdir/usr/share/applications/com.bilingify.readest.desktop"
 
   if ! compgen -G "$pkgdir/usr/share/metainfo/*" > /dev/null; then
     install -Dm644 data/metainfo/appdata.xml \
