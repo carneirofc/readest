@@ -53,6 +53,7 @@ makedepends=(
   git
   librsvg
   nodejs
+  npm
   openssl
   pkgconf
   pnpm

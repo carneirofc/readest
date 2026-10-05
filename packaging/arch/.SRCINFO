@@ -10,6 +10,7 @@ pkgbase = readest
 	makedepends = git
 	makedepends = librsvg
 	makedepends = nodejs
+	makedepends = npm
 	makedepends = openssl
 	makedepends = pkgconf
 	makedepends = pnpm
