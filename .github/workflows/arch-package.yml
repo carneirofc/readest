@@ -1,7 +1,8 @@
 # Fork build: build packaging/arch/PKGBUILD in an Arch Linux container and
 # publish the package as a pacman repository on the rolling `arch-repo`
 # release of carneirofc/readest. The PKGBUILD builds the upstream tag it
-# names, so a run is only needed when the packaging changes.
+# names, so a run is only needed when the packaging changes. Pull requests
+# that touch the packaging are built but not published.
 #
 # To install from it, add to /etc/pacman.conf (the package is unsigned):
 #
@@ -18,10 +19,10 @@ on:
     paths:
       - packaging/arch/**
       - .github/workflows/arch-package.yml
-
-concurrency:
-  group: arch-package
-  cancel-in-progress: true
+  pull_request:
+    paths:
+      - packaging/arch/**
+      - .github/workflows/arch-package.yml
 
 permissions:
   contents: read
@@ -31,6 +32,9 @@ jobs:
     if: github.repository == 'carneirofc/readest'
     runs-on: ubuntu-latest
     timeout-minutes: 150
+    concurrency:
+      group: arch-package-build-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -56,9 +60,12 @@ jobs:
             -v "$PWD/packaging/arch:/pkg" \
             -v "$RUNNER_TEMP/out:/out" \
             -w /pkg \
+            -e PACKAGER="${{ github.repository }} CI <noreply@github.com>" \
             archlinux:base-devel \
             bash -euo pipefail -c '
               pacman -Syu --noconfirm --needed git
+              # sudo drops the environment, so hand PACKAGER over via makepkg.conf.
+              echo "PACKAGER=\"$PACKAGER\"" >> /etc/makepkg.conf
               useradd -m builder
               echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
               chown -R builder /pkg /out
@@ -83,9 +90,15 @@ jobs:
           retention-days: 7
 
   # Recreated on every run so the repository only ever holds the latest build.
+  # Not cancelled once started, so a newer run cannot interrupt it between
+  # deleting the release and creating it again.
   publish:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    concurrency:
+      group: arch-package-publish
+      cancel-in-progress: false
     permissions:
       contents: write
     env:
