@@ -152,6 +152,23 @@ describe('Calibre series metadata', () => {
       });
       const series = getSeries(result.book);
       expect(series).toMatchObject({ name: 'Example Series', position: '1', total: '5' });
+      // Plain <Manga>Yes</Manga> is a genre flag, not a reading direction.
+      expect(result.book.dir).toBeUndefined();
+    });
+
+    it('reads right-to-left manga direction from ComicInfo.xml', async () => {
+      const file = await makeCbzFixture({
+        imageCount: 3,
+        comicInfo: `<?xml version="1.0" encoding="utf-8"?>
+<ComicInfo>
+  <Title>Example Manga</Title>
+  <Manga>YesAndRightToLeft</Manga>
+  <LanguageISO>ja</LanguageISO>
+</ComicInfo>`,
+      });
+      const result = await new DocumentLoader(file).open();
+
+      expect(result.book.dir).toBe('rtl');
     });
   });
 });
