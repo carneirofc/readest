@@ -274,6 +274,16 @@ describe('tauriSetWindowTitle', () => {
     expect(win.setTitle).toHaveBeenCalledWith('Readest - The Hobbit');
     expect(invoke).not.toHaveBeenCalled();
   });
+
+  test('set_title is granted in the Tauri capabilities', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const { join } = await import('node:path');
+    const capabilities = JSON.parse(
+      await readFile(join(process.cwd(), 'src-tauri/capabilities/default.json'), 'utf8'),
+    ) as { permissions: unknown[] };
+
+    expect(capabilities.permissions).toContain('core:window:allow-set-title');
+  });
 });
 
 describe('windowNeedsClientOutline', () => {
