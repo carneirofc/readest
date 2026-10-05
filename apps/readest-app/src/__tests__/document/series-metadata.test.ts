@@ -134,6 +134,11 @@ describe('Calibre series metadata', () => {
   <Manga>Yes</Manga>
   <LanguageISO>en</LanguageISO>
   <Translator>Example Translator</Translator>
+  <Penciller>Example Penciller</Penciller>
+  <Characters>Example Hero, Example Villain</Characters>
+  <StoryArc>Example Arc</StoryArc>
+  <Imprint>Example Imprint</Imprint>
+  <Notes></Notes>
   <PageCount>20</PageCount>
 </ComicInfo>`,
       });
@@ -154,6 +159,13 @@ describe('Calibre series metadata', () => {
       expect(series).toMatchObject({ name: 'Example Series', position: '1', total: '5' });
       // Plain <Manga>Yes</Manga> is a genre flag, not a reading direction.
       expect(result.book.dir).toBeUndefined();
+      expect(result.book.metadata.comicInfo).toEqual({
+        Translator: 'Example Translator',
+        Penciller: 'Example Penciller',
+        Characters: 'Example Hero, Example Villain',
+        StoryArc: 'Example Arc',
+        Imprint: 'Example Imprint',
+      });
     });
 
     it('reads right-to-left manga direction from ComicInfo.xml', async () => {
@@ -169,6 +181,15 @@ describe('Calibre series metadata', () => {
       const result = await new DocumentLoader(file).open();
 
       expect(result.book.dir).toBe('rtl');
+    });
+
+    it('leaves comicInfo undefined without extra ComicInfo.xml fields', async () => {
+      const file = await makeCbzFixture({
+        imageCount: 1,
+        comicInfo: '<ComicInfo><Title>Plain</Title></ComicInfo>',
+      });
+      const result = await new DocumentLoader(file).open();
+      expect(result.book.metadata.comicInfo).toBeUndefined();
     });
   });
 });
