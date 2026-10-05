@@ -15,7 +15,7 @@
 
 pkgname=readest
 pkgver=0.12.10
-pkgrel=1
+pkgrel=2
 pkgdesc='Modern, feature-rich ebook reader'
 arch=(x86_64 aarch64)
 url='https://github.com/readest/readest'
@@ -182,6 +182,11 @@ package() {
     mv "$icons/256x256@2/apps" "$icons/256x256/"
     rmdir "$icons/256x256@2"
   fi
+
+  # The metainfo's launchable (and the CachyOS/Flathub packages) use the
+  # app id as the desktop file name; Tauri names it after productName.
+  mv "$pkgdir/usr/share/applications/Readest.desktop" \
+    "$pkgdir/usr/share/applications/com.bilingify.readest.desktop"
 
   if ! compgen -G "$pkgdir/usr/share/metainfo/*" > /dev/null; then
     install -Dm644 data/metainfo/appdata.xml \
