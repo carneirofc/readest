@@ -81,7 +81,9 @@ describe('applyScrollableStyle', () => {
     const wrapper = table.parentElement!;
     expect(wrapper.classList.contains(SCROLL_WRAPPER_CLASS)).toBe(true);
     // The negative top margin moves to the wrapper (box stays in place)...
-    expect(wrapper.style.marginTop).toBe('-1em');
+    // The value is copied from the computed style, which browsers (and jsdom
+    // >= 30) report in pixels: -1em at the 16px default font size.
+    expect(wrapper.style.marginTop).toBe('-16px');
     // ...and is zeroed on the table so it sits flush inside the clip box.
     expect(table.style.marginTop).toBe('0px');
     // The positive left margin is left alone (still counts toward overflow).

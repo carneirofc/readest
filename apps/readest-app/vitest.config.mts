@@ -24,6 +24,14 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Node >= 22 defines a global `localStorage` getter (experimental Web
+    // Storage) that returns `undefined` unless `--localstorage-file` is set.
+    // Vitest's jsdom environment skips copying any window key that already
+    // exists on the Node global, so jsdom's working Storage never reaches
+    // tests and every `localStorage.getItem(...)` throws. Turn the Node
+    // feature off in the workers so jsdom's implementation wins. Guarded so
+    // Node builds without the flag (< 22) keep starting normally.
+    execArgv: 'localStorage' in globalThis ? ['--no-experimental-webstorage'] : [],
     silent: 'passed-only',
     setupFiles: ['./vitest.setup.ts'],
     exclude: [

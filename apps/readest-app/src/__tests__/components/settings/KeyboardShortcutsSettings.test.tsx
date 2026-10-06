@@ -80,36 +80,36 @@ describe('KeyboardShortcutsSettings', () => {
     });
   });
 
-  test.each([
-    'customShortcuts',
-    null,
-  ])('keeps later edits based on a cross-tab storage update with key %s', (key) => {
-    saveCommandPaletteCtrlK();
-    render(<KeyboardShortcutsSettings onBack={vi.fn()} />);
-    const oldValue = localStorage.getItem('customShortcuts');
+  test.each(['customShortcuts', null])(
+    'keeps later edits based on a cross-tab storage update with key %s',
+    (key) => {
+      saveCommandPaletteCtrlK();
+      render(<KeyboardShortcutsSettings onBack={vi.fn()} />);
+      const oldValue = localStorage.getItem('customShortcuts');
 
-    if (key === null) localStorage.clear();
-    else localStorage.setItem('customShortcuts', '{}');
-    act(() => {
-      window.dispatchEvent(
-        new StorageEvent('storage', {
-          key,
-          oldValue,
-          newValue: key === null ? null : '{}',
-          storageArea: localStorage,
-        }),
-      );
-    });
+      if (key === null) localStorage.clear();
+      else localStorage.setItem('customShortcuts', '{}');
+      act(() => {
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key,
+            oldValue,
+            newValue: key === null ? null : '{}',
+            storageArea: localStorage,
+          }),
+        );
+      });
 
-    expect(screen.getByLabelText('Open Command Palette: Ctrl+Shift+P')).toBeTruthy();
+      expect(screen.getByLabelText('Open Command Palette: Ctrl+Shift+P')).toBeTruthy();
 
-    fireEvent.click(screen.getByLabelText('Open Books: Ctrl+O'));
-    fireEvent.keyDown(window, { key: '9', ctrlKey: true, shiftKey: true });
+      fireEvent.click(screen.getByLabelText('Open Books: Ctrl+O'));
+      fireEvent.keyDown(window, { key: '9', ctrlKey: true, shiftKey: true });
 
-    expect(JSON.parse(localStorage.getItem('customShortcuts') ?? '{}')).toEqual({
-      onOpenBooks: ['ctrl+shift+9'],
-    });
-  });
+      expect(JSON.parse(localStorage.getItem('customShortcuts') ?? '{}')).toEqual({
+        onOpenBooks: ['ctrl+shift+9'],
+      });
+    },
+  );
 
   test('renders the replacement dialog inside an open daisyui modal', () => {
     render(<KeyboardShortcutsSettings onBack={vi.fn()} />);

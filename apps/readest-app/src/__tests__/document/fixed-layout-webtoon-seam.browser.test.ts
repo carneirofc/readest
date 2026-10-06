@@ -89,40 +89,37 @@ const openStrip = async (scaleFactor: string, horizontal: boolean) => {
 };
 
 describe('fixed-layout Webtoon Mode seams (readest#6484)', () => {
-  it.each([
-    '100',
-    '137',
-    '163',
-    '211',
-  ])('leaves no line between vertically scrolled pages at scale-factor %s', async (scaleFactor) => {
-    const loaded = await openStrip(scaleFactor, false);
-    const hostRect = renderer!.getBoundingClientRect();
-    for (const boundary of [1, 2]) {
-      // Only the pages near the viewport are mounted, so find the boundary
-      // from the page before it, which is on screen.
-      const before = renderer!.shadowRoot!.querySelector(
-        `.scroll-page[data-index="${boundary - 1}"]`,
-      );
-      const top = before!.getBoundingClientRect().bottom;
-      renderer!.scrollTop += top - hostRect.top - hostRect.height / 2;
-      await waitFor(() => loaded.has(boundary - 1) && loaded.has(boundary));
-      await nextFrames();
-      expect(await findSeam(false), `boundary ${boundary}`).toEqual([]);
-    }
-  });
+  it.each(['100', '137', '163', '211'])(
+    'leaves no line between vertically scrolled pages at scale-factor %s',
+    async (scaleFactor) => {
+      const loaded = await openStrip(scaleFactor, false);
+      const hostRect = renderer!.getBoundingClientRect();
+      for (const boundary of [1, 2]) {
+        // Only the pages near the viewport are mounted, so find the boundary
+        // from the page before it, which is on screen.
+        const before = renderer!.shadowRoot!.querySelector(
+          `.scroll-page[data-index="${boundary - 1}"]`,
+        );
+        const top = before!.getBoundingClientRect().bottom;
+        renderer!.scrollTop += top - hostRect.top - hostRect.height / 2;
+        await waitFor(() => loaded.has(boundary - 1) && loaded.has(boundary));
+        await nextFrames();
+        expect(await findSeam(false), `boundary ${boundary}`).toEqual([]);
+      }
+    },
+  );
 
-  it.each([
-    '129',
-    '211',
-    '250',
-  ])('leaves no line between horizontally scrolled pages at scale-factor %s', async (scaleFactor) => {
-    const loaded = await openStrip(scaleFactor, true);
-    const pages = renderer!.shadowRoot!.querySelectorAll<HTMLElement>('.scroll-page');
-    const hostRect = renderer!.getBoundingClientRect();
-    const left = pages[1]!.getBoundingClientRect().left;
-    renderer!.scrollLeft += left - hostRect.left - hostRect.width / 2;
-    await waitFor(() => loaded.has(0) && loaded.has(1));
-    await nextFrames();
-    expect(await findSeam(true)).toEqual([]);
-  });
+  it.each(['129', '211', '250'])(
+    'leaves no line between horizontally scrolled pages at scale-factor %s',
+    async (scaleFactor) => {
+      const loaded = await openStrip(scaleFactor, true);
+      const pages = renderer!.shadowRoot!.querySelectorAll<HTMLElement>('.scroll-page');
+      const hostRect = renderer!.getBoundingClientRect();
+      const left = pages[1]!.getBoundingClientRect().left;
+      renderer!.scrollLeft += left - hostRect.left - hostRect.width / 2;
+      await waitFor(() => loaded.has(0) && loaded.has(1));
+      await nextFrames();
+      expect(await findSeam(true)).toEqual([]);
+    },
+  );
 });

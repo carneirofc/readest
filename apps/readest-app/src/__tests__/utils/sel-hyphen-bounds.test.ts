@@ -228,11 +228,22 @@ describe('isHyphenHandleBugProneRange', () => {
     vi.spyOn(window, 'getComputedStyle').mockImplementation((el: Element) => {
       const style = origGetComputedStyle(el);
       if (el === p) {
-        const proxy = Object.create(style);
-        proxy.getPropertyValue = (prop: string) =>
-          prop === 'hyphens' || prop === '-webkit-hyphens' ? hyphens : style.getPropertyValue(prop);
-        proxy.fontSize = '17.5px';
-        return proxy;
+        // jsdom >= 30 brand-checks `this` in CSSStyleProperties accessors, so
+        // an Object.create() wrapper cannot read through the inherited getters.
+        // Forward every access to the real declaration instead.
+        return new Proxy(style, {
+          get(target, prop) {
+            if (prop === 'getPropertyValue') {
+              return (name: string) =>
+                name === 'hyphens' || name === '-webkit-hyphens'
+                  ? hyphens
+                  : target.getPropertyValue(name);
+            }
+            if (prop === 'fontSize') return '17.5px';
+            const value = Reflect.get(target, prop, target);
+            return typeof value === 'function' ? value.bind(target) : value;
+          },
+        });
       }
       return style;
     });

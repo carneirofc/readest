@@ -377,46 +377,46 @@ describe('Annotate opens the note editor at the selection', () => {
     expect(screen.queryByTestId('note-editor-popup')).toBeNull();
   });
 
-  test.each([
-    'onHighlightSelection',
-    'onUnderlineSelection',
-  ])('%s removes the saved note bubble when deleting its highlight (#6540)', async (action) => {
-    h.views = [{ addAnnotation: vi.fn() }, { addAnnotation: vi.fn() }];
-    await annotate();
-    await act(async () => {
-      screen.getByText('stub-save').click();
-    });
-    const annotation = liveAnnotations()[0]!;
-    for (const view of h.views) {
-      expect(view.addAnnotation).toHaveBeenCalledWith(
-        {
-          ...annotation,
-          value: `${NOTE_PREFIX}${annotation.cfi}`,
-        },
-        false,
-      );
-      view.addAnnotation.mockClear();
-    }
+  test.each(['onHighlightSelection', 'onUnderlineSelection'])(
+    '%s removes the saved note bubble when deleting its highlight (#6540)',
+    async (action) => {
+      h.views = [{ addAnnotation: vi.fn() }, { addAnnotation: vi.fn() }];
+      await annotate();
+      await act(async () => {
+        screen.getByText('stub-save').click();
+      });
+      const annotation = liveAnnotations()[0]!;
+      for (const view of h.views) {
+        expect(view.addAnnotation).toHaveBeenCalledWith(
+          {
+            ...annotation,
+            value: `${NOTE_PREFIX}${annotation.cfi}`,
+          },
+          false,
+        );
+        view.addAnnotation.mockClear();
+      }
 
-    await selectText();
-    act(() => {
-      h.actions?.[action]?.();
-    });
+      await selectText();
+      act(() => {
+        h.actions?.[action]?.();
+      });
 
-    expect(liveAnnotations()).toHaveLength(0);
-    expect(h.saveConfig).toHaveBeenLastCalledWith({}, 'book-1', h.config, settings);
-    for (const view of h.views) {
-      expect(view.addAnnotation).toHaveBeenCalledWith(
-        expect.objectContaining({ value: `${NOTE_PREFIX}${annotation.cfi}` }),
-        true,
-      );
-      expect(view.addAnnotation).toHaveBeenCalledWith(
-        expect.objectContaining({ cfi: annotation.cfi }),
-        true,
-      );
-      expect(view.addAnnotation).toHaveBeenCalledTimes(2);
-    }
-  });
+      expect(liveAnnotations()).toHaveLength(0);
+      expect(h.saveConfig).toHaveBeenLastCalledWith({}, 'book-1', h.config, settings);
+      for (const view of h.views) {
+        expect(view.addAnnotation).toHaveBeenCalledWith(
+          expect.objectContaining({ value: `${NOTE_PREFIX}${annotation.cfi}` }),
+          true,
+        );
+        expect(view.addAnnotation).toHaveBeenCalledWith(
+          expect.objectContaining({ cfi: annotation.cfi }),
+          true,
+        );
+        expect(view.addAnnotation).toHaveBeenCalledTimes(2);
+      }
+    },
+  );
 
   test('cancelling drops the placeholder highlight it just created (#4791)', async () => {
     await annotate();
@@ -475,24 +475,25 @@ describe('Annotate opens the note editor at the selection', () => {
   // dismissing it lands back on the selection toolbar (#5213). Only the note
   // editor consumes the selection; a lookup's handles are hidden for its
   // duration by the same gate instead.
-  test.each([
-    'onDictionarySelection',
-    'onTranslateSelection',
-    'onProofreadSelection',
-  ])('%s keeps the selection so its dismiss returns to the toolbar (#5213)', async (action) => {
-    render(<Annotator bookKey='book-1' contentInsets={{ top: 0, right: 0, bottom: 0, left: 0 }} />);
-    await selectText();
+  test.each(['onDictionarySelection', 'onTranslateSelection', 'onProofreadSelection'])(
+    '%s keeps the selection so its dismiss returns to the toolbar (#5213)',
+    async (action) => {
+      render(
+        <Annotator bookKey='book-1' contentInsets={{ top: 0, right: 0, bottom: 0, left: 0 }} />,
+      );
+      await selectText();
 
-    act(() => {
-      h.actions?.[action]?.();
-    });
+      act(() => {
+        h.actions?.[action]?.();
+      });
 
-    expect(h.deselect).not.toHaveBeenCalled();
-    expect(h.isTextSelected.current).toBe(true);
-    // ...but the platform's own grabbers go, since no z-index can get a popup
-    // above them on iOS.
-    expect(h.suppressNativeSelectionHandles).toHaveBeenCalled();
-  });
+      expect(h.deselect).not.toHaveBeenCalled();
+      expect(h.isTextSelected.current).toBe(true);
+      // ...but the platform's own grabbers go, since no z-index can get a popup
+      // above them on iOS.
+      expect(h.suppressNativeSelectionHandles).toHaveBeenCalled();
+    },
+  );
 
   test('the note bubble pencil opens the same editor, seeded with the existing note', async () => {
     await editExistingNote();
@@ -506,35 +507,36 @@ describe('Annotate opens the note editor at the selection', () => {
     ]);
   });
 
-  test.each([
-    1280, 390,
-  ])('keeps the editor open on save failure at viewport %s (#6123)', async (width) => {
-    setViewport(width, 844);
-    await editExistingNote();
-    const surface = width === 390 ? 'sheet' : 'popup';
-    let rejectSave!: (error: Error) => void;
-    h.saveConfig.mockReturnValueOnce(
-      new Promise<void>((_resolve, reject) => {
-        rejectSave = reject;
-      }),
-    );
-    act(() => {
-      screen.getByText('stub-save').click();
-    });
-    expect(screen.getByTestId(`note-editor-${surface}`)).toBeTruthy();
-    act(() => {
-      screen.getByText('stub-save').click();
-    });
-    expect(h.saveConfig).toHaveBeenCalledTimes(1);
-    await act(async () => {
-      rejectSave(new Error('disk full'));
-    });
-    expect(screen.getByTestId(`note-editor-${surface}`)).toBeTruthy();
-    await act(async () => {
-      screen.getByText('stub-save').click();
-    });
-    expect(screen.queryByTestId(`note-editor-${surface}`)).toBeNull();
-  });
+  test.each([1280, 390])(
+    'keeps the editor open on save failure at viewport %s (#6123)',
+    async (width) => {
+      setViewport(width, 844);
+      await editExistingNote();
+      const surface = width === 390 ? 'sheet' : 'popup';
+      let rejectSave!: (error: Error) => void;
+      h.saveConfig.mockReturnValueOnce(
+        new Promise<void>((_resolve, reject) => {
+          rejectSave = reject;
+        }),
+      );
+      act(() => {
+        screen.getByText('stub-save').click();
+      });
+      expect(screen.getByTestId(`note-editor-${surface}`)).toBeTruthy();
+      act(() => {
+        screen.getByText('stub-save').click();
+      });
+      expect(h.saveConfig).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        rejectSave(new Error('disk full'));
+      });
+      expect(screen.getByTestId(`note-editor-${surface}`)).toBeTruthy();
+      await act(async () => {
+        screen.getByText('stub-save').click();
+      });
+      expect(screen.queryByTestId(`note-editor-${surface}`)).toBeNull();
+    },
+  );
 
   test('cancelling an existing note never deletes it', async () => {
     await editExistingNote();

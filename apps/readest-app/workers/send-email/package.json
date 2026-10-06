@@ -9,12 +9,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0",
-    "postal-mime": "^2.2.0"
+    "@supabase/supabase-js": "^2.117.2",
+    "postal-mime": "^4.0.4"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.0.0",
-    "typescript": "^5.0.0",
-    "wrangler": "^4.0.0"
+    "@cloudflare/workers-types": "^5.20261004.1",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.147.0"
   }
 }

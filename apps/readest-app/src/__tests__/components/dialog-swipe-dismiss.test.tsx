@@ -164,24 +164,24 @@ describe('Dialog swipe-to-dismiss', () => {
     expect(impactFeedback).not.toHaveBeenCalled();
   });
 
-  it.each([
-    true,
-    false,
-  ])('does not vibrate when a drag returns to the sheet (snap: %s)', (snapped) => {
-    const onClose = vi.fn();
-    render(
-      <Dialog isOpen snapHeight={snapped ? 0.75 : undefined} onClose={onClose}>
-        Body
-      </Dialog>,
-    );
-    const handle = document.querySelector('.drag-handle') as HTMLElement;
-    act(() => {
-      handle.dispatchEvent(touchEvent('touchstart', 100, 300));
-      window.dispatchEvent(touchEvent('touchend', 100, 299));
-    });
-    expect(onClose).not.toHaveBeenCalled();
-    expect(impactFeedback).not.toHaveBeenCalled();
-  });
+  it.each([true, false])(
+    'does not vibrate when a drag returns to the sheet (snap: %s)',
+    (snapped) => {
+      const onClose = vi.fn();
+      render(
+        <Dialog isOpen snapHeight={snapped ? 0.75 : undefined} onClose={onClose}>
+          Body
+        </Dialog>,
+      );
+      const handle = document.querySelector('.drag-handle') as HTMLElement;
+      act(() => {
+        handle.dispatchEvent(touchEvent('touchstart', 100, 300));
+        window.dispatchEvent(touchEvent('touchend', 100, 299));
+      });
+      expect(onClose).not.toHaveBeenCalled();
+      expect(impactFeedback).not.toHaveBeenCalled();
+    },
+  );
 
   it('leaves the gesture to a text field', () => {
     const onClose = vi.fn();

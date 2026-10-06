@@ -92,16 +92,15 @@ describe('getMediaSession', () => {
   // Desktop webviews can't be trusted with media keys: WKWebView never becomes
   // the macOS Now Playing app, and WebView2's routing hinges on a playing
   // media element (#6433). The plugin drives the OS media controls instead.
-  test.each([
-    'macos',
-    'windows',
-    'linux',
-  ])('returns TauriMediaSession on %s Tauri (native OS media controls)', (platform) => {
-    vi.mocked(getOSPlatform).mockReturnValue(platform as ReturnType<typeof getOSPlatform>);
-    vi.mocked(isTauriAppPlatform).mockReturnValue(true);
-    setNavigatorMediaSession(true);
-    expect(getMediaSession()).toBeInstanceOf(TauriMediaSession);
-  });
+  test.each(['macos', 'windows', 'linux'])(
+    'returns TauriMediaSession on %s Tauri (native OS media controls)',
+    (platform) => {
+      vi.mocked(getOSPlatform).mockReturnValue(platform as ReturnType<typeof getOSPlatform>);
+      vi.mocked(isTauriAppPlatform).mockReturnValue(true);
+      setNavigatorMediaSession(true);
+      expect(getMediaSession()).toBeInstanceOf(TauriMediaSession);
+    },
+  );
 
   test('falls back to navigator.mediaSession on the web', () => {
     vi.mocked(getOSPlatform).mockReturnValue('macos');

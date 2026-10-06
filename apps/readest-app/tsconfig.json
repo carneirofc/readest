@@ -6,6 +6,9 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
+    // @sindresorhus/tsconfig v8 enables this; the codebase uses parameter
+    // properties and enums, which it forbids.
+    "erasableSyntaxOnly": false,
     "noEmit": true,
     "rootDir": "../..",
     "esModuleInterop": true,

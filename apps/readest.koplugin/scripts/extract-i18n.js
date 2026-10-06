@@ -11,8 +11,6 @@
  * Run with: node scripts/extract-i18n.js
  */
 
-'use strict';
-
 const fs = require('node:fs');
 const path = require('node:path');
 

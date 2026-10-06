@@ -1086,59 +1086,76 @@ describe('TTSController', () => {
     test.each([
       ['forward', 'Third sentence.'],
       ['backward', 'First sentence.'],
-    ] as const)('%s preserves the current paragraph before stepping', async (direction, expected) => {
-      await controller.initViewTTS(0);
-      const { TTS } =
-        await vi.importActual<typeof import('foliate-js/tts.js')>('foliate-js/tts.js');
-      const { textWalker } = await vi.importActual<typeof import('foliate-js/text-walker.js')>(
-        'foliate-js/text-walker.js',
-      );
-      const doc = document.implementation.createHTMLDocument();
-      doc.body.innerHTML = '<p>First sentence.</p><p>Second sentence.</p><p>Third sentence.</p>';
-      const tts = new TTS(doc, textWalker, () => NodeFilter.FILTER_ACCEPT, vi.fn(), 'sentence');
-      tts.start();
-      const ssml = tts.next()!;
-      const mark = new DOMParser().parseFromString(ssml, 'application/xml').querySelector('mark')!;
-      tts.setMark(mark.getAttribute('name')!);
-      mockView.tts = tts;
+    ] as const)(
+      '%s preserves the current paragraph before stepping',
+      async (direction, expected) => {
+        await controller.initViewTTS(0);
+        const { TTS } =
+          await vi.importActual<typeof import('foliate-js/tts.js')>('foliate-js/tts.js');
+        const { textWalker } = await vi.importActual<typeof import('foliate-js/text-walker.js')>(
+          'foliate-js/text-walker.js',
+        );
+        const doc = document.implementation.createHTMLDocument();
+        doc.body.innerHTML = '<p>First sentence.</p><p>Second sentence.</p><p>Third sentence.</p>';
+        const tts = new TTS(doc, textWalker, () => NodeFilter.FILTER_ACCEPT, vi.fn(), 'sentence');
+        tts.start();
+        const ssml = tts.next()!;
+        const mark = new DOMParser()
+          .parseFromString(ssml, 'application/xml')
+          .querySelector('mark')!;
+        tts.setMark(mark.getAttribute('name')!);
+        mockView.tts = tts;
 
-      await controller[direction](true);
+        await controller[direction](true);
 
-      expect(tts.getLastRange()?.toString()).toBe(expected);
-    });
+        expect(tts.getLastRange()?.toString()).toBe(expected);
+      },
+    );
 
-    test.each([
-      'forward',
-      'backward',
-    ] as const)('%s initializes a fresh text iterator', async (direction) => {
-      await controller.initViewTTS(0);
-      const { TTS } =
-        await vi.importActual<typeof import('foliate-js/tts.js')>('foliate-js/tts.js');
-      const { textWalker } = await vi.importActual<typeof import('foliate-js/text-walker.js')>(
-        'foliate-js/text-walker.js',
-      );
-      const doc = document.implementation.createHTMLDocument();
-      doc.body.innerHTML = '<p>First sentence.</p><p>Second sentence.</p>';
-      mockView.tts = new TTS(doc, textWalker, () => NodeFilter.FILTER_ACCEPT, vi.fn(), 'sentence');
+    test.each(['forward', 'backward'] as const)(
+      '%s initializes a fresh text iterator',
+      async (direction) => {
+        await controller.initViewTTS(0);
+        const { TTS } =
+          await vi.importActual<typeof import('foliate-js/tts.js')>('foliate-js/tts.js');
+        const { textWalker } = await vi.importActual<typeof import('foliate-js/text-walker.js')>(
+          'foliate-js/text-walker.js',
+        );
+        const doc = document.implementation.createHTMLDocument();
+        doc.body.innerHTML = '<p>First sentence.</p><p>Second sentence.</p>';
+        mockView.tts = new TTS(
+          doc,
+          textWalker,
+          () => NodeFilter.FILTER_ACCEPT,
+          vi.fn(),
+          'sentence',
+        );
 
-      await expect(controller[direction](true)).resolves.toBeUndefined();
-    });
+        await expect(controller[direction](true)).resolves.toBeUndefined();
+      },
+    );
 
-    test.each([
-      'forward',
-      'backward',
-    ] as const)('%s handles a section without readable text', async (direction) => {
-      await controller.initViewTTS(0);
-      const { TTS } =
-        await vi.importActual<typeof import('foliate-js/tts.js')>('foliate-js/tts.js');
-      const { textWalker } = await vi.importActual<typeof import('foliate-js/text-walker.js')>(
-        'foliate-js/text-walker.js',
-      );
-      const doc = document.implementation.createHTMLDocument();
-      mockView.tts = new TTS(doc, textWalker, () => NodeFilter.FILTER_ACCEPT, vi.fn(), 'sentence');
+    test.each(['forward', 'backward'] as const)(
+      '%s handles a section without readable text',
+      async (direction) => {
+        await controller.initViewTTS(0);
+        const { TTS } =
+          await vi.importActual<typeof import('foliate-js/tts.js')>('foliate-js/tts.js');
+        const { textWalker } = await vi.importActual<typeof import('foliate-js/text-walker.js')>(
+          'foliate-js/text-walker.js',
+        );
+        const doc = document.implementation.createHTMLDocument();
+        mockView.tts = new TTS(
+          doc,
+          textWalker,
+          () => NodeFilter.FILTER_ACCEPT,
+          vi.fn(),
+          'sentence',
+        );
 
-      await expect(controller[direction](true)).resolves.toBeUndefined();
-    });
+        await expect(controller[direction](true)).resolves.toBeUndefined();
+      },
+    );
   });
 
   describe('stopAtChapterEnd', () => {

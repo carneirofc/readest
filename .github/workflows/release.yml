@@ -287,7 +287,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
 
       - name: install dependencies
@@ -363,7 +363,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
 
       - name: setup Java (for Android build only)

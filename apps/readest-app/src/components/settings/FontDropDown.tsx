@@ -1,9 +1,8 @@
 import clsx from 'clsx';
 import React, { useMemo } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import { List, type RowComponentProps } from 'react-window';
 import { FiChevronUp, FiChevronLeft } from 'react-icons/fi';
 import { MdCheck } from 'react-icons/md';
-import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useResponsiveSize } from '@/hooks/useResponsiveSize';
 
@@ -16,21 +15,25 @@ interface DropdownProps {
   onGetFontFamily: (option: string, family: string) => string;
 }
 
-interface FontItemProps {
-  index: number;
-  style: React.CSSProperties;
-  data: {
-    options: { option: string; label?: string }[];
-    selected: string;
-    onSelect: (option: string) => void;
-    onGetFontFamily: (option: string, family: string) => string;
-    family: string;
-    iconSize: number;
-  };
+interface FontRowProps {
+  options: { option: string; label?: string }[];
+  selected: string;
+  onSelect: (option: string) => void;
+  onGetFontFamily: (option: string, family: string) => string;
+  family: string;
+  iconSize: number;
 }
 
-const FontItem: React.FC<FontItemProps> = ({ index, style, data }) => {
-  const { options, selected, onSelect, onGetFontFamily, family, iconSize: iconSize16 } = data;
+const FontItem = ({
+  index,
+  style,
+  options,
+  selected,
+  onSelect,
+  onGetFontFamily,
+  family,
+  iconSize: iconSize16,
+}: RowComponentProps<FontRowProps>) => {
   const option = options[index]!;
 
   return (
@@ -79,7 +82,6 @@ const FontDropdown: React.FC<DropdownProps> = ({
   onGetFontFamily,
 }) => {
   const _ = useTranslation();
-  const { appService } = useEnv();
   const iconSize = useResponsiveSize(16);
   const allOptions = [...options, ...(moreOptions ?? [])];
   const selectedOption = allOptions.find((option) => option.option === selected) ?? allOptions[0]!;
@@ -87,7 +89,7 @@ const FontDropdown: React.FC<DropdownProps> = ({
   const ITEM_HEIGHT = 40;
   const MAX_HEIGHT = 320;
 
-  const mainListData = useMemo(
+  const mainListData = useMemo<FontRowProps>(
     () => ({
       options,
       selected,
@@ -95,12 +97,11 @@ const FontDropdown: React.FC<DropdownProps> = ({
       onGetFontFamily,
       family: family ?? '',
       iconSize,
-      appService,
     }),
-    [options, selected, onSelect, onGetFontFamily, family, iconSize, appService],
+    [options, selected, onSelect, onGetFontFamily, family, iconSize],
   );
 
-  const moreListData = useMemo(
+  const moreListData = useMemo<FontRowProps>(
     () => ({
       options: moreOptions ?? [],
       selected,
@@ -143,14 +144,12 @@ const FontDropdown: React.FC<DropdownProps> = ({
         {/* Virtualized main options */}
         <div style={{ height: Math.min(options.length * ITEM_HEIGHT, MAX_HEIGHT) }}>
           <List
-            width='100%'
-            height={Math.min(options.length * ITEM_HEIGHT, MAX_HEIGHT)}
-            itemCount={options.length}
-            itemSize={ITEM_HEIGHT}
-            itemData={mainListData}
-          >
-            {FontItem}
-          </List>
+            style={{ width: '100%', height: Math.min(options.length * ITEM_HEIGHT, MAX_HEIGHT) }}
+            rowCount={options.length}
+            rowHeight={ITEM_HEIGHT}
+            rowComponent={FontItem}
+            rowProps={mainListData}
+          />
         </div>
 
         {/* More options with nested dropdown */}
@@ -181,14 +180,15 @@ const FontDropdown: React.FC<DropdownProps> = ({
               {/* Virtualized more options */}
               <div style={{ height: Math.min(moreOptions.length * ITEM_HEIGHT, MAX_HEIGHT) }}>
                 <List
-                  width='100%'
-                  height={Math.min(moreOptions.length * ITEM_HEIGHT, MAX_HEIGHT)}
-                  itemCount={moreOptions.length}
-                  itemSize={ITEM_HEIGHT}
-                  itemData={moreListData}
-                >
-                  {FontItem}
-                </List>
+                  style={{
+                    width: '100%',
+                    height: Math.min(moreOptions.length * ITEM_HEIGHT, MAX_HEIGHT),
+                  }}
+                  rowCount={moreOptions.length}
+                  rowHeight={ITEM_HEIGHT}
+                  rowComponent={FontItem}
+                  rowProps={moreListData}
+                />
               </div>
             </ul>
           </li>

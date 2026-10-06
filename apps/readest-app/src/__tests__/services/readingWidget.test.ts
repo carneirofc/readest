@@ -103,19 +103,19 @@ describe('refreshReadingWidget', () => {
     expect(updateReadingWidget).toHaveBeenCalledWith(expect.objectContaining({ isEink }));
   });
 
-  it.each([
-    true,
-    false,
-  ])('includes the percent stat only when showPercent is %s', async (showPercent) => {
-    const { updateReadingWidget, getReadingWidgetInstances } = await bridge();
-    mocks.library = [mk({ hash: 'a', readingStatus: 'reading', progress: [42, 100] })];
-    vi.mocked(getReadingWidgetInstances).mockResolvedValueOnce({
-      instances: [instance(1, { showPercent })],
-    });
-    await refreshReadingWidget(androidAppService, _);
-    const { stats } = vi.mocked(updateReadingWidget).mock.lastCall![0];
-    expect(stats.includes('42% Read')).toBe(showPercent);
-  });
+  it.each([true, false])(
+    'includes the percent stat only when showPercent is %s',
+    async (showPercent) => {
+      const { updateReadingWidget, getReadingWidgetInstances } = await bridge();
+      mocks.library = [mk({ hash: 'a', readingStatus: 'reading', progress: [42, 100] })];
+      vi.mocked(getReadingWidgetInstances).mockResolvedValueOnce({
+        instances: [instance(1, { showPercent })],
+      });
+      await refreshReadingWidget(androidAppService, _);
+      const { stats } = vi.mocked(updateReadingWidget).mock.lastCall![0];
+      expect(stats.includes('42% Read')).toBe(showPercent);
+    },
+  );
 
   it.each([
     [500, '250 / 500'], // the book's saved count maps the fraction onto print pages

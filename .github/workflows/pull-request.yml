@@ -151,7 +151,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
 
       - name: install Dependencies
@@ -226,7 +226,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
 
       - name: install Dependencies
@@ -291,7 +291,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
 
       - name: install Dependencies
@@ -381,7 +381,7 @@ jobs:
         if: steps.changes.outputs.tauri == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
 
       # The tauri tests run `next dev`, whose Turbopack cache lives in

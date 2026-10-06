@@ -383,14 +383,12 @@ describe('isBookOrbitPassEnabled', () => {
     syncBookStates: false,
   } as BookOrbitSettings;
 
-  it.each([
-    'syncProgress',
-    'syncNotes',
-    'syncStats',
-    'syncBookStates',
-  ] as const)('runs while only %s is on, so an unmatched book still gets listed for linking', (field) => {
-    expect(isBookOrbitPassEnabled({ ...base, [field]: true })).toBe(true);
-  });
+  it.each(['syncProgress', 'syncNotes', 'syncStats', 'syncBookStates'] as const)(
+    'runs while only %s is on, so an unmatched book still gets listed for linking',
+    (field) => {
+      expect(isBookOrbitPassEnabled({ ...base, [field]: true })).toBe(true);
+    },
+  );
 
   it('does not run when every sync option is off', () => {
     expect(isBookOrbitPassEnabled(base)).toBe(false);

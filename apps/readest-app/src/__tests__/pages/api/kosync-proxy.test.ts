@@ -38,19 +38,19 @@ describe('KOSync proxy boundaries', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    'https://sync.example.com',
-    'https://sync.example.com/',
-  ])('constructs the allowed endpoint from the origin: %s', async (serverUrl) => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response('{}'));
-    vi.stubGlobal('fetch', fetchMock);
-    const res = await call('/users/auth', serverUrl);
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://sync.example.com/users/auth',
-      expect.anything(),
-    );
-  });
+  it.each(['https://sync.example.com', 'https://sync.example.com/'])(
+    'constructs the allowed endpoint from the origin: %s',
+    async (serverUrl) => {
+      const fetchMock = vi.fn().mockResolvedValue(new Response('{}'));
+      vi.stubGlobal('fetch', fetchMock);
+      const res = await call('/users/auth', serverUrl);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://sync.example.com/users/auth',
+        expect.anything(),
+      );
+    },
+  );
 
   it('allows fetching progress for a document hash', async () => {
     const endpoint = '/syncs/progress/0123456789abcdef0123456789abcdef';
@@ -64,18 +64,16 @@ describe('KOSync proxy boundaries', () => {
     expect(res.json).toHaveBeenCalledWith({ percentage: 0.5 });
   });
 
-  it.each([
-    '../users/auth',
-    '%2e%2e',
-    'abc/extra',
-    'abc?admin=true',
-  ])('rejects malformed progress suffix %s', async (suffix) => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    const res = await call(`/syncs/progress/${suffix}`);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
+  it.each(['../users/auth', '%2e%2e', 'abc/extra', 'abc?admin=true'])(
+    'rejects malformed progress suffix %s',
+    async (suffix) => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      const res = await call(`/syncs/progress/${suffix}`);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
 
   it('rejects paths merely containing an allowed endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('{}'));
@@ -154,27 +152,28 @@ describe('KOSync proxy boundaries', () => {
     );
     expect(res.json).toHaveBeenCalledWith({ ok: true });
   });
-  it.each([
-    301, 302, 303, 307, 308,
-  ])('uses fetch-compatible POST semantics for %s', async (status) => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(null, { status, headers: { location: '/users/create/' } }),
-      )
-      .mockResolvedValueOnce(new Response('{"ok":true}'));
-    vi.stubGlobal('fetch', fetchMock);
-    const body = { username: 'test-reader' };
-    await call('/users/create', 'https://sync.example.com', { method: 'POST', body });
-    const preservesBody = status === 307 || status === 308;
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      'https://sync.example.com/users/create/',
-      expect.objectContaining({
-        method: preservesBody ? 'POST' : 'GET',
-        body: preservesBody ? JSON.stringify(body) : null,
-        redirect: 'manual',
-      }),
-    );
-  });
+  it.each([301, 302, 303, 307, 308])(
+    'uses fetch-compatible POST semantics for %s',
+    async (status) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(null, { status, headers: { location: '/users/create/' } }),
+        )
+        .mockResolvedValueOnce(new Response('{"ok":true}'));
+      vi.stubGlobal('fetch', fetchMock);
+      const body = { username: 'test-reader' };
+      await call('/users/create', 'https://sync.example.com', { method: 'POST', body });
+      const preservesBody = status === 307 || status === 308;
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        'https://sync.example.com/users/create/',
+        expect.objectContaining({
+          method: preservesBody ? 'POST' : 'GET',
+          body: preservesBody ? JSON.stringify(body) : null,
+          redirect: 'manual',
+        }),
+      );
+    },
+  );
 });

@@ -147,23 +147,23 @@ function makeFullscreenWindow({
 }
 
 describe('tauriHandleToggleFullScreen', () => {
-  test.each([
-    'android',
-    'ios',
-  ] as const)('does not invoke desktop fullscreen commands on %s', async (platform) => {
-    vi.mocked(osType).mockReturnValue(platform);
-    const win = makeFullscreenWindow({ isFullscreen: false, isMaximized: false });
-    win.isFullscreen.mockRejectedValue(new Error('Plugin window not initialized'));
-    vi.mocked(getCurrentWindow).mockReturnValue(
-      win as unknown as ReturnType<typeof getCurrentWindow>,
-    );
+  test.each(['android', 'ios'] as const)(
+    'does not invoke desktop fullscreen commands on %s',
+    async (platform) => {
+      vi.mocked(osType).mockReturnValue(platform);
+      const win = makeFullscreenWindow({ isFullscreen: false, isMaximized: false });
+      win.isFullscreen.mockRejectedValue(new Error('Plugin window not initialized'));
+      vi.mocked(getCurrentWindow).mockReturnValue(
+        win as unknown as ReturnType<typeof getCurrentWindow>,
+      );
 
-    await expect(tauriHandleToggleFullScreen()).resolves.toBeUndefined();
+      await expect(tauriHandleToggleFullScreen()).resolves.toBeUndefined();
 
-    expect(getCurrentWindow).not.toHaveBeenCalled();
-    expect(win.isFullscreen).not.toHaveBeenCalled();
-    expect(win.setFullscreen).not.toHaveBeenCalled();
-  });
+      expect(getCurrentWindow).not.toHaveBeenCalled();
+      expect(win.isFullscreen).not.toHaveBeenCalled();
+      expect(win.setFullscreen).not.toHaveBeenCalled();
+    },
+  );
 
   test('enters fullscreen when the window is maximized (Phosh / Windows-maximized case)', async () => {
     // On Phosh the window is always maximized, and on Windows users often run

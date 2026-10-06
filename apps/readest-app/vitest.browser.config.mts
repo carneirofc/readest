@@ -59,6 +59,14 @@ export default defineConfig({
       '@readest/turso-database-common',
     ],
   },
+  // Vite 8 made CommonJS interop consistent between dev and build, and in the
+  // process `import Image from 'next/image'` (a `module.exports = require()`
+  // re-export of an `__esModule` file) started yielding the whole exports
+  // object instead of the component. Keep the Vite 7 interop for the
+  // pre-bundled deps in this test lane until next/image ships ESM.
+  legacy: {
+    inconsistentCjsInterop: true,
+  },
   server: {
     headers: {
       'Cross-Origin-Embedder-Policy': 'require-corp',

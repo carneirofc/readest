@@ -46,43 +46,43 @@ beforeEach(() => {
   });
 });
 describe('bookshelf persistence and sync integration', () => {
-  it.each([
-    false,
-    true,
-  ])('preserves stale-window edits after anonymous publication (acknowledged: %s)', async (acknowledged) => {
-    localStorage.removeItem('user');
-    mocks.userId = '';
-    const base = readBookshelves(useSettingsStore.getState().settings);
-    const custom = createBookshelf('Created in another window');
-    await saveBookshelfDraft(env, base, [...base, custom]);
-    const staleSettings = useSettingsStore.getState().settings;
-    expect(staleSettings.bookshelves?.rows[custom.id]?.localOnly).toBe(true);
+  it.each([false, true])(
+    'preserves stale-window edits after anonymous publication (acknowledged: %s)',
+    async (acknowledged) => {
+      localStorage.removeItem('user');
+      mocks.userId = '';
+      const base = readBookshelves(useSettingsStore.getState().settings);
+      const custom = createBookshelf('Created in another window');
+      await saveBookshelfDraft(env, base, [...base, custom]);
+      const staleSettings = useSettingsStore.getState().settings;
+      expect(staleSettings.bookshelves?.rows[custom.id]?.localOnly).toBe(true);
 
-    mocks.userId = 'account';
-    localStorage.setItem('user', JSON.stringify({ id: mocks.userId }));
-    mocks.connected = true;
-    await replayBookshelfOperations(env);
-    const published = mocks.markDirty.mock.calls[0]![0] as ReplicaRow;
-    const persistedSettings = useSettingsStore.getState().settings;
-    expect(persistedSettings.bookshelves?.rows[custom.id]?.user_id).toBe('account');
-    expect(persistedSettings.bookshelves?.rows[custom.id]?.localOnly).toBeUndefined();
-    if (acknowledged) acknowledgeBookshelfOperation(published);
+      mocks.userId = 'account';
+      localStorage.setItem('user', JSON.stringify({ id: mocks.userId }));
+      mocks.connected = true;
+      await replayBookshelfOperations(env);
+      const published = mocks.markDirty.mock.calls[0]![0] as ReplicaRow;
+      const persistedSettings = useSettingsStore.getState().settings;
+      expect(persistedSettings.bookshelves?.rows[custom.id]?.user_id).toBe('account');
+      expect(persistedSettings.bookshelves?.rows[custom.id]?.localOnly).toBeUndefined();
+      if (acknowledged) acknowledgeBookshelfOperation(published);
 
-    // The other window has not received the settings broadcast yet.
-    useSettingsStore.setState({ settings: staleSettings });
-    await saveBookshelfDraft(
-      env,
-      [...base, custom],
-      [...base, { ...custom, name: 'Edited after publication' }],
-    );
-    const pending = readPendingBookshelves().find((row) => row.replica_id === custom.id);
-    expect(pending?.fields_jsonb['definition']?.v).toMatchObject({
-      name: 'Edited after publication',
-    });
-    expect(
-      readBookshelves(useSettingsStore.getState().settings).find((s) => s.id === custom.id)?.name,
-    ).toBe('Edited after publication');
-  });
+      // The other window has not received the settings broadcast yet.
+      useSettingsStore.setState({ settings: staleSettings });
+      await saveBookshelfDraft(
+        env,
+        [...base, custom],
+        [...base, { ...custom, name: 'Edited after publication' }],
+      );
+      const pending = readPendingBookshelves().find((row) => row.replica_id === custom.id);
+      expect(pending?.fields_jsonb['definition']?.v).toMatchObject({
+        name: 'Edited after publication',
+      });
+      expect(
+        readBookshelves(useSettingsStore.getState().settings).find((s) => s.id === custom.id)?.name,
+      ).toBe('Edited after publication');
+    },
+  );
 
   it('discards anonymous shelves created and deleted locally, including stale cached state', async () => {
     localStorage.removeItem('user');

@@ -121,28 +121,24 @@ describe('Android Settings overscroll', () => {
     expect(panel.style.transform).toBe('');
   });
 
-  it.each([
-    'middle',
-    'inward',
-    'sideways',
-    'input',
-    'ios',
-    'eink',
-  ])('preserves native gestures: %s', (kind) => {
-    if (kind === 'ios') env.isAndroidApp = false;
-    if (kind === 'eink') document.documentElement.dataset['eink'] = 'true';
-    const { panel, content } = setup(kind === 'middle' ? 200 : 0);
-    const target = kind === 'input' ? screen.getByTestId('input') : content;
-    touch(target, 'touchstart', 100, 300);
-    const event = touch(
-      target,
-      'touchmove',
-      kind === 'sideways' ? 300 : 100,
-      kind === 'inward' ? 200 : 400,
-    );
-    expect(event.defaultPrevented).toBe(false);
-    expect(panel.style.transform).toBe('');
-  });
+  it.each(['middle', 'inward', 'sideways', 'input', 'ios', 'eink'])(
+    'preserves native gestures: %s',
+    (kind) => {
+      if (kind === 'ios') env.isAndroidApp = false;
+      if (kind === 'eink') document.documentElement.dataset['eink'] = 'true';
+      const { panel, content } = setup(kind === 'middle' ? 200 : 0);
+      const target = kind === 'input' ? screen.getByTestId('input') : content;
+      touch(target, 'touchstart', 100, 300);
+      const event = touch(
+        target,
+        'touchmove',
+        kind === 'sideways' ? 300 : 100,
+        kind === 'inward' ? 200 : 400,
+      );
+      expect(event.defaultPrevented).toBe(false);
+      expect(panel.style.transform).toBe('');
+    },
+  );
 });
 
 describe('Settings tab scrolling', () => {

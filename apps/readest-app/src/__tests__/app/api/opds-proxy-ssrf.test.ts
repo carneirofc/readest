@@ -137,28 +137,29 @@ describe('OPDS proxy SSRF guard', () => {
 });
 
 describe('OPDS proxy response isolation', () => {
-  it.each([
-    200, 401, 500,
-  ])('does not serve active upstream content or origin-controlling headers (%s)', async (status) => {
-    fetchSpy.mockResolvedValueOnce(
-      new Response('<script>evil()</script>', {
-        status,
-        headers: {
-          'Content-Type': 'text/html',
-          'Service-Worker-Allowed': '/',
-          'Set-Cookie': 'session=attacker',
-          'Content-Security-Policy': "script-src * 'unsafe-inline'",
-        },
-      }),
-    );
-    const res = await GET(proxyReq('https://feeds.example.com/page'));
-    expect(res.headers.get('Service-Worker-Allowed')).toBeNull();
-    expect(res.headers.get('Set-Cookie')).toBeNull();
-    expect(res.headers.get('Content-Security-Policy')).toContain("default-src 'none'");
-    expect(res.headers.get('Content-Security-Policy')).toContain('sandbox');
-    expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
-    expect(res.headers.get('Content-Type')).toBe('application/octet-stream');
-  });
+  it.each([200, 401, 500])(
+    'does not serve active upstream content or origin-controlling headers (%s)',
+    async (status) => {
+      fetchSpy.mockResolvedValueOnce(
+        new Response('<script>evil()</script>', {
+          status,
+          headers: {
+            'Content-Type': 'text/html',
+            'Service-Worker-Allowed': '/',
+            'Set-Cookie': 'session=attacker',
+            'Content-Security-Policy': "script-src * 'unsafe-inline'",
+          },
+        }),
+      );
+      const res = await GET(proxyReq('https://feeds.example.com/page'));
+      expect(res.headers.get('Service-Worker-Allowed')).toBeNull();
+      expect(res.headers.get('Set-Cookie')).toBeNull();
+      expect(res.headers.get('Content-Security-Policy')).toContain("default-src 'none'");
+      expect(res.headers.get('Content-Security-Policy')).toContain('sandbox');
+      expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
+      expect(res.headers.get('Content-Type')).toBe('application/octet-stream');
+    },
+  );
 
   it('does not expose an upstream JavaScript MIME type', async () => {
     fetchSpy.mockResolvedValueOnce(

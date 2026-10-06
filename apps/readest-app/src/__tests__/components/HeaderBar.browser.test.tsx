@@ -139,21 +139,26 @@ describe('tablet header hit testing (#6242)', () => {
     [686, 1097, 24],
     [807, 1291, 36 / 1.4875000715255737],
     [1291, 807, 36 / 1.4875000715255737],
-  ])('keeps button centers clickable with overlapping page chrome at %i x %i', async (width, height, barHeight) => {
-    statusBarHeight = barHeight;
-    await page.viewport(width, height);
-    const { container } = renderHeader();
-    const header = container.querySelector('.header-bar') as HTMLElement;
-    const buttons = [...header.querySelectorAll('button')].filter(
-      (button) => button.getBoundingClientRect().width > 0,
-    );
-    expect(buttons.length).toBeGreaterThan(0);
-    for (const button of buttons) {
-      const rect = button.getBoundingClientRect();
-      const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
-      expect(button.contains(hit), button.title || button.ariaLabel || 'header button').toBe(true);
-    }
-  });
+  ])(
+    'keeps button centers clickable with overlapping page chrome at %i x %i',
+    async (width, height, barHeight) => {
+      statusBarHeight = barHeight;
+      await page.viewport(width, height);
+      const { container } = renderHeader();
+      const header = container.querySelector('.header-bar') as HTMLElement;
+      const buttons = [...header.querySelectorAll('button')].filter(
+        (button) => button.getBoundingClientRect().width > 0,
+      );
+      expect(buttons.length).toBeGreaterThan(0);
+      for (const button of buttons) {
+        const rect = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        expect(button.contains(hit), button.title || button.ariaLabel || 'header button').toBe(
+          true,
+        );
+      }
+    },
+  );
 });
 
 it('lets the page-title strip receive taps while the toolbar is hidden', async () => {
@@ -173,33 +178,31 @@ it.each([
   { width: 807, mobile: true, rtl: false, eink: false },
   { width: 390, mobile: true, rtl: true, eink: false },
   { width: 390, mobile: true, rtl: false, eink: true },
-])('keeps the mobile reader menu near the screen edge and dismissible: %o', async ({
-  width,
-  mobile,
-  rtl,
-  eink,
-}) => {
-  useEnvMock.mockReturnValue({ envConfig: {}, appService: { isMobile: mobile } });
-  document.documentElement.classList.toggle('ui-rtl', rtl);
-  document.documentElement.setAttribute('data-eink', String(eink));
-  await page.viewport(width, 900);
-  const { container } = renderHeader();
-  fireEvent.click(screen.getByRole('button', { name: 'View Options' }));
-  const menu = container.querySelector('.view-menu') as HTMLElement;
-  const toggle = screen.getByRole('button', { name: 'View Options' });
-  const endGap = width - menu.getBoundingClientRect().right;
-  expect(endGap).toBeGreaterThanOrEqual(16);
-  expect(endGap).toBeLessThanOrEqual(20);
-  expect(menu.getBoundingClientRect().top).toBeCloseTo(toggle.getBoundingClientRect().bottom + 6);
-  const overlay = container.querySelector('.overlay') as HTMLElement;
-  expect(getComputedStyle(overlay).position).toBe('fixed');
-  const outside = document.elementFromPoint(16, 880) as HTMLElement;
-  expect(outside).toBe(overlay);
-  fireEvent.click(outside);
-  expect(screen.getByRole('button', { name: 'View Options' }).getAttribute('aria-expanded')).toBe(
-    'false',
-  );
-});
+])(
+  'keeps the mobile reader menu near the screen edge and dismissible: %o',
+  async ({ width, mobile, rtl, eink }) => {
+    useEnvMock.mockReturnValue({ envConfig: {}, appService: { isMobile: mobile } });
+    document.documentElement.classList.toggle('ui-rtl', rtl);
+    document.documentElement.setAttribute('data-eink', String(eink));
+    await page.viewport(width, 900);
+    const { container } = renderHeader();
+    fireEvent.click(screen.getByRole('button', { name: 'View Options' }));
+    const menu = container.querySelector('.view-menu') as HTMLElement;
+    const toggle = screen.getByRole('button', { name: 'View Options' });
+    const endGap = width - menu.getBoundingClientRect().right;
+    expect(endGap).toBeGreaterThanOrEqual(16);
+    expect(endGap).toBeLessThanOrEqual(20);
+    expect(menu.getBoundingClientRect().top).toBeCloseTo(toggle.getBoundingClientRect().bottom + 6);
+    const overlay = container.querySelector('.overlay') as HTMLElement;
+    expect(getComputedStyle(overlay).position).toBe('fixed');
+    const outside = document.elementFromPoint(16, 880) as HTMLElement;
+    expect(outside).toBe(overlay);
+    fireEvent.click(outside);
+    expect(screen.getByRole('button', { name: 'View Options' }).getAttribute('aria-expanded')).toBe(
+      'false',
+    );
+  },
+);
 
 it('keeps the desktop menu aligned with its toggle', async () => {
   useEnvMock.mockReturnValue({ envConfig: {}, appService: { isMobile: false } });

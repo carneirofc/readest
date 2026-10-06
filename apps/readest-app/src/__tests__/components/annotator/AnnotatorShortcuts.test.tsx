@@ -239,37 +239,41 @@ describe('Annotator popup shortcuts', () => {
     cleanup();
   });
 
-  test.each([
-    'onHighlightSelection',
-    'onUnderlineSelection',
-  ])('%s does not claim popup text without a CFI', async (action) => {
-    render(<Annotator bookKey='book-1' contentInsets={{ top: 0, right: 0, bottom: 0, left: 0 }} />);
-    await selectPopupText();
+  test.each(['onHighlightSelection', 'onUnderlineSelection'])(
+    '%s does not claim popup text without a CFI',
+    async (action) => {
+      render(
+        <Annotator bookKey='book-1' contentInsets={{ top: 0, right: 0, bottom: 0, left: 0 }} />,
+      );
+      await selectPopupText();
 
-    let handled: boolean | undefined;
-    act(() => {
-      handled = h.actions?.[action]?.();
-    });
+      let handled: boolean | undefined;
+      act(() => {
+        handled = h.actions?.[action]?.();
+      });
 
-    expect(handled).toBe(false);
-    expect(h.updateBooknotes).not.toHaveBeenCalled();
-  });
+      expect(handled).toBe(false);
+      expect(h.updateBooknotes).not.toHaveBeenCalled();
+    },
+  );
 
-  test.each([
-    'onHighlightSelection',
-    'onUnderlineSelection',
-  ])('%s still handles popup text with a CFI', async (action) => {
-    render(<Annotator bookKey='book-1' contentInsets={{ top: 0, right: 0, bottom: 0, left: 0 }} />);
-    await selectPopupText('epubcfi(/6/2!/4/2)');
+  test.each(['onHighlightSelection', 'onUnderlineSelection'])(
+    '%s still handles popup text with a CFI',
+    async (action) => {
+      render(
+        <Annotator bookKey='book-1' contentInsets={{ top: 0, right: 0, bottom: 0, left: 0 }} />,
+      );
+      await selectPopupText('epubcfi(/6/2!/4/2)');
 
-    let handled: boolean | undefined;
-    act(() => {
-      handled = h.actions?.[action]?.();
-    });
+      let handled: boolean | undefined;
+      act(() => {
+        handled = h.actions?.[action]?.();
+      });
 
-    expect(handled).toBe(true);
-    expect(h.updateBooknotes).toHaveBeenCalledOnce();
-  });
+      expect(handled).toBe(true);
+      expect(h.updateBooknotes).toHaveBeenCalledOnce();
+    },
+  );
 
   // #5011: Ctrl/Cmd+R is documented as "Readest reads the selection and stops",
   // but the handler called handleSpeakText() without an argument, so `oneTime`

@@ -715,8 +715,8 @@ describe('ProgressBar — rounded screen corners', () => {
   it('pulls the footer ends clear of the corner arc when the bottom margin is small', () => {
     currentViewSettings = { ...baseSettings, marginBottomPx: 16, headerFooterFontSize: 12 };
     const style = footerStyle(renderWithCorners(45, 45).container);
-    expect(style.paddingInlineStart).toBe('max(calc(2.5% + 8px), 35.7px)');
-    expect(style.paddingInlineEnd).toBe('max(calc(2.5% + 8px), 35.7px)');
+    expect(style.paddingInlineStart).toBe('max(2.5% + 8px, 35.7px)');
+    expect(style.paddingInlineEnd).toBe('max(2.5% + 8px, 35.7px)');
   });
 
   it('keeps the regular padding when the text sits above the corner arc', () => {
@@ -732,7 +732,7 @@ describe('ProgressBar — rounded screen corners', () => {
     // Left of two side-by-side books: its right edge sits mid-screen.
     currentViewSettings = { ...baseSettings, marginBottomPx: 16, headerFooterFontSize: 12 };
     const style = footerStyle(renderWithCorners(45, 0).container);
-    expect(style.paddingInlineStart).toBe('max(calc(2.5% + 8px), 35.7px)');
+    expect(style.paddingInlineStart).toBe('max(2.5% + 8px, 35.7px)');
     expect(style.paddingInlineEnd).toBe('calc(2.5% + 8px)');
   });
 });

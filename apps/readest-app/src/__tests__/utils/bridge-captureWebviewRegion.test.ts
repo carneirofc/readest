@@ -25,25 +25,24 @@ describe('captureWebviewRegion', () => {
     vi.clearAllMocks();
   });
 
-  it.each([
-    'windows',
-    'linux',
-  ])('crops the region out of the whole-view capture on %s', async (platform) => {
-    osPlatform.mockReturnValue(platform);
-    await expect(captureWebviewRegion(region)).resolves.toBe(bitmap);
-    expect(invoke).toHaveBeenCalledWith('plugin:native-bridge|capture_webview_region', {
-      payload: region,
-    });
-    expect(createImageBitmap).toHaveBeenCalledWith(expect.any(Blob), 480, 21, 600, 800);
-  });
+  it.each(['windows', 'linux'])(
+    'crops the region out of the whole-view capture on %s',
+    async (platform) => {
+      osPlatform.mockReturnValue(platform);
+      await expect(captureWebviewRegion(region)).resolves.toBe(bitmap);
+      expect(invoke).toHaveBeenCalledWith('plugin:native-bridge|capture_webview_region', {
+        payload: region,
+      });
+      expect(createImageBitmap).toHaveBeenCalledWith(expect.any(Blob), 480, 21, 600, 800);
+    },
+  );
 
-  it.each([
-    'macos',
-    'ios',
-    'android',
-  ])('returns the native region bytes on %s', async (platform) => {
-    osPlatform.mockReturnValue(platform);
-    await expect(captureWebviewRegion(region)).resolves.toBe(image);
-    expect(createImageBitmap).not.toHaveBeenCalled();
-  });
+  it.each(['macos', 'ios', 'android'])(
+    'returns the native region bytes on %s',
+    async (platform) => {
+      osPlatform.mockReturnValue(platform);
+      await expect(captureWebviewRegion(region)).resolves.toBe(image);
+      expect(createImageBitmap).not.toHaveBeenCalled();
+    },
+  );
 });

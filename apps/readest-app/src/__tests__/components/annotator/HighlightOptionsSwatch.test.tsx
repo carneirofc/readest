@@ -282,32 +282,35 @@ describe('highlight options at page edges (#6162)', () => {
     ['right', true, 970, 1014, -44],
     ['up', false, 200, 244, -44],
     ['down', false, 200, 244, 44],
-  ] as const)('keeps the %s strip accessible (vertical=%s, start=%s)', (dir, vertical, start, end, offset) => {
-    const frame = document.createElement('div');
-    const popup = document.createElement('div');
-    vi.spyOn(frame, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 1024, 768));
-    vi.spyOn(popup, 'getBoundingClientRect').mockReturnValue(
-      vertical
-        ? new DOMRect(start, 100, end - start, 300)
-        : new DOMRect(100, start, 300, end - start),
-    );
-    vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(function (
-      this: HTMLElement,
-    ) {
-      return this === popup ? frame : popup;
-    });
-    const { container } = render(
-      <HighlightOptions
-        isVertical={vertical}
-        popupWidth={vertical ? 44 : 300}
-        popupHeight={vertical ? 300 : 44}
-        triangleDir={dir}
-        selectedStyle='highlight'
-        selectedColor='yellow'
-        onHandleHighlight={vi.fn()}
-      />,
-    );
-    const options = container.querySelector<HTMLElement>('.highlight-options')!;
-    expect(vertical ? options.style.left : options.style.top).toBe(`${offset}px`);
-  });
+  ] as const)(
+    'keeps the %s strip accessible (vertical=%s, start=%s)',
+    (dir, vertical, start, end, offset) => {
+      const frame = document.createElement('div');
+      const popup = document.createElement('div');
+      vi.spyOn(frame, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 1024, 768));
+      vi.spyOn(popup, 'getBoundingClientRect').mockReturnValue(
+        vertical
+          ? new DOMRect(start, 100, end - start, 300)
+          : new DOMRect(100, start, 300, end - start),
+      );
+      vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this === popup ? frame : popup;
+      });
+      const { container } = render(
+        <HighlightOptions
+          isVertical={vertical}
+          popupWidth={vertical ? 44 : 300}
+          popupHeight={vertical ? 300 : 44}
+          triangleDir={dir}
+          selectedStyle='highlight'
+          selectedColor='yellow'
+          onHandleHighlight={vi.fn()}
+        />,
+      );
+      const options = container.querySelector<HTMLElement>('.highlight-options')!;
+      expect(vertical ? options.style.left : options.style.top).toBe(`${offset}px`);
+    },
+  );
 });

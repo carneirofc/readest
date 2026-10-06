@@ -108,19 +108,18 @@ describe('note save confirmation (#6123)', () => {
     expect(await result.current('note-1', 'draft')).toBe(true);
   });
 
-  it.each([
-    'missing',
-    'deleted',
-    'update rejected',
-  ])('reports failure when the note is %s', async (failure) => {
-    if (failure === 'missing') h.booknotes = [];
-    if (failure === 'deleted') h.booknotes[0]!.deletedAt = 1234;
-    h.updateBooknotes.mockReturnValue(undefined);
-    const { result } = renderHook(() => useSaveBooknoteNoteText('book-1'));
-    expect(await result.current('note-1', 'draft')).toBe(false);
-    expect(h.saveConfig).not.toHaveBeenCalled();
-    expect(h.toast).toHaveBeenCalledWith('toast', expect.objectContaining({ type: 'error' }));
-  });
+  it.each(['missing', 'deleted', 'update rejected'])(
+    'reports failure when the note is %s',
+    async (failure) => {
+      if (failure === 'missing') h.booknotes = [];
+      if (failure === 'deleted') h.booknotes[0]!.deletedAt = 1234;
+      h.updateBooknotes.mockReturnValue(undefined);
+      const { result } = renderHook(() => useSaveBooknoteNoteText('book-1'));
+      expect(await result.current('note-1', 'draft')).toBe(false);
+      expect(h.saveConfig).not.toHaveBeenCalled();
+      expect(h.toast).toHaveBeenCalledWith('toast', expect.objectContaining({ type: 'error' }));
+    },
+  );
 });
 
 it('rolls back only the failed note and preserves concurrent note changes', async () => {

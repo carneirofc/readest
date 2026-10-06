@@ -1249,27 +1249,30 @@ describe('paragraph mode selection (#6200)', () => {
   it.each([
     ['../Notes/notes.xhtml#note1', 'OEBPS/Notes/notes.xhtml#note1'],
     ['#note1', 'OEBPS/Text/ch1.xhtml#note1'],
-  ])('routes a cloned footnote %s through the reader without navigating the app (#6359)', async (href, resolved) => {
-    const dispatchSpy = vi.spyOn(eventDispatcher, 'dispatch');
-    const { clone, view, onClose } = await renderOverlayWithSource(
-      vi.fn(),
-      '<p>Text <a epub:type="noteref" href="' + href + '"><sup>1</sup></a></p><h2>Next</h2>',
-    );
-    const onLink = vi.fn((event: Event) => event.preventDefault());
-    view.addEventListener('link', onLink);
-    dispatchSpy.mockClear();
+  ])(
+    'routes a cloned footnote %s through the reader without navigating the app (#6359)',
+    async (href, resolved) => {
+      const dispatchSpy = vi.spyOn(eventDispatcher, 'dispatch');
+      const { clone, view, onClose } = await renderOverlayWithSource(
+        vi.fn(),
+        '<p>Text <a epub:type="noteref" href="' + href + '"><sup>1</sup></a></p><h2>Next</h2>',
+      );
+      const onLink = vi.fn((event: Event) => event.preventDefault());
+      view.addEventListener('link', onLink);
+      dispatchSpy.mockClear();
 
-    expect(fireEvent.click(clone.querySelector('sup')!)).toBe(false);
+      expect(fireEvent.click(clone.querySelector('sup')!)).toBe(false);
 
-    expect(onLink).toHaveBeenCalledTimes(1);
-    const event = onLink.mock.calls[0]![0] as CustomEvent;
-    expect(event.detail).toEqual({ a: clone.querySelector('a'), href: resolved });
-    expect(event.cancelable).toBe(true);
-    expect(view.goTo).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
-    expect(dispatchSpy).not.toHaveBeenCalledWith('paragraph-prev', expect.anything());
-    expect(dispatchSpy).not.toHaveBeenCalledWith('paragraph-next', expect.anything());
-  });
+      expect(onLink).toHaveBeenCalledTimes(1);
+      const event = onLink.mock.calls[0]![0] as CustomEvent;
+      expect(event.detail).toEqual({ a: clone.querySelector('a'), href: resolved });
+      expect(event.cancelable).toBe(true);
+      expect(view.goTo).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+      expect(dispatchSpy).not.toHaveBeenCalledWith('paragraph-prev', expect.anything());
+      expect(dispatchSpy).not.toHaveBeenCalledWith('paragraph-next', expect.anything());
+    },
+  );
 
   it('leaves paragraph mode for an ordinary in-book link the popup does not consume', async () => {
     const { clone, view, onClose } = await renderOverlayWithSource(

@@ -394,37 +394,37 @@ describe('Yomitan importer and lookup', () => {
     await expect(verifyYomitanIndex(host, 'db-1')).rejects.toThrow(/schema/i);
   });
 
-  test.each([
-    'meta',
-    'terms',
-  ] as const)('rejects a portable %s view before querying dictionary data', async (table) => {
-    const source = await createDictionaryWithTerms([
-      ['word', 'word', '', '', 1, ['definition'], 1, ''],
-    ]);
-    db = await NodeDatabaseService.open(':memory:');
-    const baseHost = createHost(source, db);
-    await buildYomitanIndex(baseHost, {
-      dictionaryId: 'dict-1',
-      sourceHandle: 'source-1',
-      databaseHandle: 'db-1',
-      sourceFormatVersion: 3,
-    });
-    await db.execute(`ALTER TABLE ${table} RENAME TO ${table}_source`);
-    await db.execute(`CREATE VIEW ${table} AS SELECT * FROM ${table}_source`);
+  test.each(['meta', 'terms'] as const)(
+    'rejects a portable %s view before querying dictionary data',
+    async (table) => {
+      const source = await createDictionaryWithTerms([
+        ['word', 'word', '', '', 1, ['definition'], 1, ''],
+      ]);
+      db = await NodeDatabaseService.open(':memory:');
+      const baseHost = createHost(source, db);
+      await buildYomitanIndex(baseHost, {
+        dictionaryId: 'dict-1',
+        sourceHandle: 'source-1',
+        databaseHandle: 'db-1',
+        sourceFormatVersion: 3,
+      });
+      await db.execute(`ALTER TABLE ${table} RENAME TO ${table}_source`);
+      await db.execute(`CREATE VIEW ${table} AS SELECT * FROM ${table}_source`);
 
-    const queries: string[] = [];
-    const host: YomitanHost = {
-      ...baseHost,
-      select: async (handle, sql, params, maxRows) => {
-        queries.push(sql);
-        return baseHost.select(handle, sql, params, maxRows);
-      },
-    };
+      const queries: string[] = [];
+      const host: YomitanHost = {
+        ...baseHost,
+        select: async (handle, sql, params, maxRows) => {
+          queries.push(sql);
+          return baseHost.select(handle, sql, params, maxRows);
+        },
+      };
 
-    await expect(verifyYomitanIndex(host, 'db-1')).rejects.toThrow(/schema/i);
-    expect(queries).toHaveLength(1);
-    expect(queries[0]).toContain('main.sqlite_schema');
-  });
+      await expect(verifyYomitanIndex(host, 'db-1')).rejects.toThrow(/schema/i);
+      expect(queries).toHaveLength(1);
+      expect(queries[0]).toContain('main.sqlite_schema');
+    },
+  );
 
   test('rejects portable tables that shadow SQLite row identity', async () => {
     const source = await createDictionaryWithTerms([

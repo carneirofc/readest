@@ -314,93 +314,91 @@ describe('AnnotationPopup anchoring', () => {
 // A full-page selection clamps the toolbar to the cell edge. Its floating
 // style/color strip must flip inward rather than disappear outside the cell.
 describe('AnnotationPopup full-page selection (#6162)', () => {
-  it.each([
-    'up',
-    'down',
-    'left',
-    'right',
-  ] as const)('keeps the %s style/color strip inside the book cell and clickable', async (dir) => {
-    const vertical = dir === 'left' || dir === 'right';
-    const onHighlight = vi.fn();
-    const point = {
-      x: dir === 'right' ? 356 : 10,
-      y: dir === 'down' ? 446 : 10,
-    };
-    const { container } = render(
-      <div
-        data-eink='true'
-        style={{ position: 'fixed', left: 40, top: 20, width: 410, height: 500 }}
-      >
-        <AnnotationPopup
-          bookKey='test'
-          dir='ltr'
-          isVertical={vertical}
-          buttons={toolButtons}
-          notes={[]}
-          position={{ dir, point }}
-          trianglePosition={{ dir, point: { x: point.x, y: point.y + 20 } }}
-          highlightOptionsVisible
-          selectedStyle='highlight'
-          selectedColor='yellow'
-          popupWidth={POPUP_W}
-          popupHeight={POPUP_H}
-          onHighlight={onHighlight}
-          onDismiss={vi.fn()}
-        />
-      </div>,
-    );
-    const cell = container.firstElementChild as HTMLElement;
-    const options = container.querySelector<HTMLElement>('.highlight-options')!;
-    await vi.waitFor(() => {
-      const bounds = cell.getBoundingClientRect();
-      const rect = options.getBoundingClientRect();
-      expect(rect.top).toBeGreaterThanOrEqual(bounds.top);
-      expect(rect.bottom).toBeLessThanOrEqual(bounds.bottom);
-      expect(rect.left).toBeGreaterThanOrEqual(bounds.left);
-      expect(rect.right).toBeLessThanOrEqual(bounds.right);
-    });
-    await page.elementLocator(options.querySelector('button')!).click();
-    await vi.waitFor(() => expect(onHighlight).toHaveBeenCalledWith(true));
-  });
+  it.each(['up', 'down', 'left', 'right'] as const)(
+    'keeps the %s style/color strip inside the book cell and clickable',
+    async (dir) => {
+      const vertical = dir === 'left' || dir === 'right';
+      const onHighlight = vi.fn();
+      const point = {
+        x: dir === 'right' ? 356 : 10,
+        y: dir === 'down' ? 446 : 10,
+      };
+      const { container } = render(
+        <div
+          data-eink='true'
+          style={{ position: 'fixed', left: 40, top: 20, width: 410, height: 500 }}
+        >
+          <AnnotationPopup
+            bookKey='test'
+            dir='ltr'
+            isVertical={vertical}
+            buttons={toolButtons}
+            notes={[]}
+            position={{ dir, point }}
+            trianglePosition={{ dir, point: { x: point.x, y: point.y + 20 } }}
+            highlightOptionsVisible
+            selectedStyle='highlight'
+            selectedColor='yellow'
+            popupWidth={POPUP_W}
+            popupHeight={POPUP_H}
+            onHighlight={onHighlight}
+            onDismiss={vi.fn()}
+          />
+        </div>,
+      );
+      const cell = container.firstElementChild as HTMLElement;
+      const options = container.querySelector<HTMLElement>('.highlight-options')!;
+      await vi.waitFor(() => {
+        const bounds = cell.getBoundingClientRect();
+        const rect = options.getBoundingClientRect();
+        expect(rect.top).toBeGreaterThanOrEqual(bounds.top);
+        expect(rect.bottom).toBeLessThanOrEqual(bounds.bottom);
+        expect(rect.left).toBeGreaterThanOrEqual(bounds.left);
+        expect(rect.right).toBeLessThanOrEqual(bounds.right);
+      });
+      await page.elementLocator(options.querySelector('button')!).click();
+      await vi.waitFor(() => expect(onHighlight).toHaveBeenCalledWith(true));
+    },
+  );
 });
 
 describe('compact four-action toolbar', () => {
-  it.each([
-    false,
-    true,
-  ])('keeps four colors visible and scrolls extras (vertical=%s)', async (vertical) => {
-    const { container } = renderPopup([{ hex: '#f97316' }, { hex: '#06b6d4' }], true, vertical);
-    const options = container.querySelector<HTMLElement>('.highlight-options')!;
-    const strip = options.lastElementChild as HTMLElement;
-    const styles = options.firstElementChild as HTMLElement;
-    const colors = [...strip.querySelectorAll('button')];
-    const start = vertical ? 'top' : 'left';
-    const end = vertical ? 'bottom' : 'right';
-    const length = vertical ? 'height' : 'width';
-    expect(container.querySelectorAll('.selection-buttons button')).toHaveLength(4);
-    const styleButtons = [...styles.querySelectorAll('button')];
-    expect(
-      styleButtons[1]!.getBoundingClientRect()[start] -
-        styleButtons[0]!.getBoundingClientRect()[end],
-    ).toBe(4);
-    expect(
-      strip.getBoundingClientRect()[start] - styles.getBoundingClientRect()[end],
-    ).toBeLessThanOrEqual(4);
-    expect(strip.getBoundingClientRect()[length]).toBeLessThanOrEqual(101);
-    expect(colors[3]!.getBoundingClientRect()[end]).toBeLessThanOrEqual(
-      strip.getBoundingClientRect()[end] - 1,
-    );
-    expect(colors[4]!.getBoundingClientRect()[end]).toBeGreaterThan(
-      strip.getBoundingClientRect()[end],
-    );
-    if (vertical) strip.scrollTop = strip.scrollHeight;
-    else strip.scrollLeft = strip.scrollWidth;
-    await vi.waitFor(() => {
-      expect(colors.at(-1)!.getBoundingClientRect()[end]).toBeLessThanOrEqual(
+  it.each([false, true])(
+    'keeps four colors visible and scrolls extras (vertical=%s)',
+    async (vertical) => {
+      const { container } = renderPopup([{ hex: '#f97316' }, { hex: '#06b6d4' }], true, vertical);
+      const options = container.querySelector<HTMLElement>('.highlight-options')!;
+      const strip = options.lastElementChild as HTMLElement;
+      const styles = options.firstElementChild as HTMLElement;
+      const colors = [...strip.querySelectorAll('button')];
+      const start = vertical ? 'top' : 'left';
+      const end = vertical ? 'bottom' : 'right';
+      const length = vertical ? 'height' : 'width';
+      expect(container.querySelectorAll('.selection-buttons button')).toHaveLength(4);
+      const styleButtons = [...styles.querySelectorAll('button')];
+      expect(
+        styleButtons[1]!.getBoundingClientRect()[start] -
+          styleButtons[0]!.getBoundingClientRect()[end],
+      ).toBe(4);
+      expect(
+        strip.getBoundingClientRect()[start] - styles.getBoundingClientRect()[end],
+      ).toBeLessThanOrEqual(4);
+      expect(strip.getBoundingClientRect()[length]).toBeLessThanOrEqual(101);
+      expect(colors[3]!.getBoundingClientRect()[end]).toBeLessThanOrEqual(
+        strip.getBoundingClientRect()[end] - 1,
+      );
+      expect(colors[4]!.getBoundingClientRect()[end]).toBeGreaterThan(
         strip.getBoundingClientRect()[end],
       );
-    });
-  });
+      if (vertical) strip.scrollTop = strip.scrollHeight;
+      else strip.scrollLeft = strip.scrollWidth;
+      await vi.waitFor(() => {
+        expect(colors.at(-1)!.getBoundingClientRect()[end]).toBeLessThanOrEqual(
+          strip.getBoundingClientRect()[end],
+        );
+      });
+    },
+  );
 
   it('fits four colors alongside the global-highlight toggle', () => {
     const { container } = renderPopup([], true, false, true);

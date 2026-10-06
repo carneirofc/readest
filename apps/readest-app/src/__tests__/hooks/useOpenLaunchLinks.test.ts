@@ -115,16 +115,19 @@ describe('useOpenLaunchLinks — audiobook deep link', () => {
   it.each([
     ['a plain book link', () => urlFor('absBook')],
     ['an annotation link', () => annotationUrlFor('absBook')],
-  ])('routes an audiobook deep link (%s) straight to the player when no reader is mounted', async (_label, url) => {
-    window.history.replaceState({}, '', '/library');
+  ])(
+    'routes an audiobook deep link (%s) straight to the player when no reader is mounted',
+    async (_label, url) => {
+      window.history.replaceState({}, '', '/library');
 
-    renderHook(() => useOpenLaunchLinks());
-    await eventDispatcher.dispatch('app-incoming-url', { urls: [url()] });
-    await Promise.resolve();
+      renderHook(() => useOpenLaunchLinks());
+      await eventDispatcher.dispatch('app-incoming-url', { urls: [url()] });
+      await Promise.resolve();
 
-    expect(routerPushMock).toHaveBeenCalledWith('/player?id=absBook');
-    expect(navigateToReaderMock).not.toHaveBeenCalled();
-  });
+      expect(routerPushMock).toHaveBeenCalledWith('/player?id=absBook');
+      expect(navigateToReaderMock).not.toHaveBeenCalled();
+    },
+  );
 
   it('routes an audiobook deep link to the player instead of pushing it into an already-mounted reader', async () => {
     window.history.replaceState({}, '', '/reader?ids=epubBook');

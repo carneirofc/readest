@@ -260,20 +260,20 @@ describe('Vertical-rl pagination (browser)', () => {
     expect(paginator.page).toBe(page);
   });
 
-  it.each([
-    false,
-    true,
-  ])('reserves vertical swipes for toolbars (animated=%s)', async (animated) => {
-    await setup(verticalBook);
-    if (animated) paginator.setAttribute('animated', '');
-    await paginator.next();
-    const page = paginator.page;
-    for (const direction of [-1, 1]) {
-      paginator.snap(0, direction * 1.2, 0, direction * 150, 120);
-      await wait(400);
-      expect(paginator.page).toBe(page);
-    }
-  });
+  it.each([false, true])(
+    'reserves vertical swipes for toolbars (animated=%s)',
+    async (animated) => {
+      await setup(verticalBook);
+      if (animated) paginator.setAttribute('animated', '');
+      await paginator.next();
+      const page = paginator.page;
+      for (const direction of [-1, 1]) {
+        paginator.snap(0, direction * 1.2, 0, direction * 150, 120);
+        await wait(400);
+        expect(paginator.page).toBe(page);
+      }
+    },
+  );
 
   it('settles a Push drag that becomes a vertical toolbar swipe with a sideways lift', async () => {
     await setup(verticalBook);

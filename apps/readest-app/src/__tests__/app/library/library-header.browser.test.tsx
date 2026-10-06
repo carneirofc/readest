@@ -79,27 +79,28 @@ describe('library search actions', () => {
   }
 });
 
-it.each([
-  390, 627,
-])('matches mobile menu gaps and dismisses outside taps at %ipx', async (width) => {
-  await page.viewport(width, 900);
-  const { container, getByRole } = renderHeader();
-  const gaps: number[] = [];
-  for (const [label, selector] of [
-    ['View Menu', '.view-menu'],
-    ['Settings Menu', '.settings-menu'],
-  ]) {
-    const toggle = getByRole('button', { name: label });
-    fireEvent.click(toggle);
-    const menu = container.querySelector(selector!) as HTMLElement;
-    const overlay = container.querySelector('.overlay') as HTMLElement;
-    gaps.push(menu.getBoundingClientRect().top - toggle.getBoundingClientRect().bottom);
-    expect(menu.getBoundingClientRect().right).toBe(width - 16);
-    expect(getComputedStyle(overlay).position).toBe('fixed');
-    const outside = document.elementFromPoint(16, 880) as HTMLElement;
-    expect(outside).toBe(overlay);
-    fireEvent.click(outside);
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-  }
-  expect(gaps[0]).toBe(gaps[1]);
-});
+it.each([390, 627])(
+  'matches mobile menu gaps and dismisses outside taps at %ipx',
+  async (width) => {
+    await page.viewport(width, 900);
+    const { container, getByRole } = renderHeader();
+    const gaps: number[] = [];
+    for (const [label, selector] of [
+      ['View Menu', '.view-menu'],
+      ['Settings Menu', '.settings-menu'],
+    ]) {
+      const toggle = getByRole('button', { name: label });
+      fireEvent.click(toggle);
+      const menu = container.querySelector(selector!) as HTMLElement;
+      const overlay = container.querySelector('.overlay') as HTMLElement;
+      gaps.push(menu.getBoundingClientRect().top - toggle.getBoundingClientRect().bottom);
+      expect(menu.getBoundingClientRect().right).toBe(width - 16);
+      expect(getComputedStyle(overlay).position).toBe('fixed');
+      const outside = document.elementFromPoint(16, 880) as HTMLElement;
+      expect(outside).toBe(overlay);
+      fireEvent.click(outside);
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    }
+    expect(gaps[0]).toBe(gaps[1]);
+  },
+);

@@ -212,32 +212,32 @@ describe('one-time bookshelf settings migration', () => {
     expect(disk.save).not.toHaveBeenCalled();
   });
 
-  it.each([
-    'account-b',
-    null,
-  ])('recovers only anonymous and current-account edits for %s', async (userId) => {
-    if (userId) localStorage.setItem('user', JSON.stringify({ id: userId }));
-    const base = defaultBookshelves(disk.settings!);
-    const clock = new HlcGenerator('device');
-    const shelves = ['account-a', 'account-b', ''].map((owner) => {
-      const shelf = createBookshelf(owner || 'Anonymous');
-      const { operations } = applyBookshelfDraft({ rows: {} }, base, [...base, shelf], {
-        userId: owner,
-        deviceId: 'device',
-        next: () => clock.next(),
+  it.each(['account-b', null])(
+    'recovers only anonymous and current-account edits for %s',
+    async (userId) => {
+      if (userId) localStorage.setItem('user', JSON.stringify({ id: userId }));
+      const base = defaultBookshelves(disk.settings!);
+      const clock = new HlcGenerator('device');
+      const shelves = ['account-a', 'account-b', ''].map((owner) => {
+        const shelf = createBookshelf(owner || 'Anonymous');
+        const { operations } = applyBookshelfDraft({ rows: {} }, base, [...base, shelf], {
+          userId: owner,
+          deviceId: 'device',
+          next: () => clock.next(),
+        });
+        for (const row of operations) journalBookshelfOperation(row);
+        return { owner, shelf };
       });
-      for (const row of operations) journalBookshelfOperation(row);
-      return { owner, shelf };
-    });
-    const pending = readPendingBookshelves();
+      const pending = readPendingBookshelves();
 
-    const loaded = readBookshelves(await loadSettings(ctx));
+      const loaded = readBookshelves(await loadSettings(ctx));
 
-    for (const { owner, shelf } of shelves) {
-      expect(loaded.some((entry) => entry.id === shelf.id)).toBe(!owner || owner === userId);
-    }
-    expect(readPendingBookshelves()).toEqual(pending);
-  });
+      for (const { owner, shelf } of shelves) {
+        expect(loaded.some((entry) => entry.id === shelf.id)).toBe(!owner || owner === userId);
+      }
+      expect(readPendingBookshelves()).toEqual(pending);
+    },
+  );
 
   it('retries migration if saving the config fails', async () => {
     disk.save.mockRejectedValueOnce(new Error('Disk full'));
