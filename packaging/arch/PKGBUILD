@@ -4,6 +4,11 @@
 # Linux release does (`pnpm tauri build`, see apps/readest-app/scripts/tauri.mjs)
 # and modelled on nix/package.nix.
 #
+# Plain `makepkg` builds the upstream tag v$pkgver. scripts/package.sh builds
+# this checkout's committed HEAD instead: it sets $PKG_SOURCE to the checkout
+# (and runs makepkg on a copy of this directory), and pkgver() then names the
+# commit (0.12.12.r9001.ge95451a).
+#
 # Notes:
 # - build() needs network access: `pnpm tauri` fetches @tauri-apps/cli-cef
 #   with `pnpm dlx`, and cargo fetches the tauri feat/cef git dependencies.
@@ -12,8 +17,8 @@
 #   reading does.
 # - Packaged by the carneirofc/readest fork under its own name so it does not
 #   clash with distribution packages; it provides and replaces `readest`.
-# - When bumping pkgver, check that the CEF distribution below still matches
-#   the cef-dll-sys version in Cargo.cef.lock (151.x.y+<cef version>).
+# - The CEF distribution below must match the cef-dll-sys version in
+#   Cargo.cef.lock (151.x.y+<cef version>); prepare() stops when it does not.
 
 pkgname=readest-carneirofc
 _pkgname=readest
@@ -71,8 +76,9 @@ options=(!lto !debug)
 
 _cef=cef_binary_151.3.24+g2384915+chromium-151.0.7922.174
 source=(
-  "$_pkgname::git+$url.git#tag=v$pkgver"
-  'foliate-js::git+https://github.com/readest/foliate-js.git'
+  "$_pkgname::git+${PKG_SOURCE:-$url.git#tag=v$pkgver}"
+  # The fork's .gitmodules points here; its main also holds upstream's commits.
+  'foliate-js::git+https://github.com/carneirofc/foliate-js.git'
   'tauri::git+https://github.com/readest/tauri.git'
   'simplecc-wasm::git+https://github.com/readest/simplecc-wasm.git'
   'qcms::git+https://github.com/mozilla/pdf.js.qcms.git'
@@ -113,8 +119,28 @@ _cef_archive() {
   esac
 }
 
+pkgver() {
+  cd "$_pkgname"
+  local version
+  version=$(sed -n 's/^  "version": "\([^"]*\)".*/\1/p' apps/readest-app/package.json)
+  # A release tag builds as its version; any other commit adds the commit count
+  # and hash, so later commits sort newer.
+  if git describe --exact-match --tags --match "v$version" >/dev/null 2>&1; then
+    printf '%s' "${version//-/.}"
+  else
+    printf '%s.r%s.g%s' "${version//-/.}" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+  fi
+}
+
 prepare() {
   cd "$_pkgname"
+
+  local cef_version=${_cef#cef_binary_}
+  cef_version=${cef_version%%+*}
+  grep -A1 '^name = "cef-dll-sys"$' Cargo.cef.lock | grep -q "+$cef_version\"$" || {
+    echo "Cargo.cef.lock wants another CEF than $_cef: update _cef and its checksums" >&2
+    return 1
+  }
 
   local entry path name
   for entry in "${_submodules[@]}"; do
