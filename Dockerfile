@@ -1,8 +1,7 @@
 FROM docker.io/library/node:26-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1 AS dependencies
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
-RUN corepack prepare pnpm@11.1.1 --activate
+RUN npm install -g pnpm@11.1.1
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/readest-app/package.json ./apps/readest-app/
@@ -17,8 +16,7 @@ RUN pnpm --filter @readest/readest-app setup-vendors
 FROM docker.io/library/node:26-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1 AS development-stage
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
-RUN corepack prepare pnpm@11.1.1 --activate
+RUN npm install -g pnpm@11.1.1
 WORKDIR /app
 COPY --from=dependencies /app /app
 COPY . .
@@ -29,8 +27,7 @@ ENTRYPOINT ["pnpm", "dev-web", "-H", "0.0.0.0"]
 FROM docker.io/library/node:26-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1 AS build
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
-RUN corepack prepare pnpm@11.1.1 --activate
+RUN npm install -g pnpm@11.1.1
 WORKDIR /app
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
