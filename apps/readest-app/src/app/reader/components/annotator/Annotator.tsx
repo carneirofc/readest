@@ -490,6 +490,8 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
     }, 500),
     [],
   );
+  // Its trailing call would set state after unmount.
+  useEffect(() => () => handleDismissPopup.cancel(), [handleDismissPopup]);
 
   const {
     isTextSelected,
