@@ -61,6 +61,52 @@ export class UnsupportedManifestError extends Error {
   }
 }
 
+/** `GET /api/v1/uploads/capabilities`: where this user may upload. */
+export interface BookOrbitUploadCapabilities {
+  maxFileSizeBytes: number;
+  chunkSizeBytes: number;
+  canUploadToLibrary: boolean;
+  libraries: {
+    id: number;
+    name: string;
+    allowedFormats: string[];
+    organizationMode: 'book_per_file' | 'book_per_folder';
+    folders: { id: number; name: string }[];
+  }[];
+}
+
+/** An upload session (`/api/v1/uploads`), BookOrbit's resumable upload. */
+export interface BookOrbitUploadSession {
+  id: string;
+  sizeBytes: number;
+  receivedBytes: number;
+  chunkSizeBytes: number;
+  status: 'receiving' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'expired';
+  errorCode?: string;
+  errorMessage?: string;
+  bookId?: number;
+}
+
+export interface BookOrbitUploadSessionCreate {
+  filename: string;
+  sizeBytes: number;
+  /** Same key and parameters return the existing session, so a retry resumes it. */
+  idempotencyKey: string;
+  target: { kind: 'library'; libraryId: number; folderId?: number };
+}
+
+/** A non-2xx answer, with the `errorCode` BookOrbit's upload routes send. */
+export class BookOrbitRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly errorCode?: string,
+    message?: string,
+  ) {
+    super(message || `BookOrbit request failed: ${status}`);
+    this.name = 'BookOrbitRequestError';
+  }
+}
+
 export class BookOrbitAuthError extends Error {
   constructor() {
     super('BookOrbit authentication failed');
@@ -73,7 +119,8 @@ type TokenPatch = { accessToken: string };
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   headers?: Record<string, string>;
-  body?: string;
+  /** A FormData body gets its multipart Content-Type (and boundary) from fetch. */
+  body?: string | FormData;
 }
 
 const boFetch = (url: string, init: RequestOptions = {}): Promise<Response> => {
@@ -151,7 +198,15 @@ export class BookOrbitClient {
     }
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) throw new BookOrbitAuthError();
-      throw new Error(`BookOrbit ${init.method ?? 'GET'} ${path} failed: ${res.status}`);
+      const error = (await res.json().catch(() => null)) as {
+        errorCode?: string;
+        message?: string;
+      } | null;
+      throw new BookOrbitRequestError(
+        res.status,
+        error?.errorCode,
+        error?.message ?? `BookOrbit ${init.method ?? 'GET'} ${path} failed: ${res.status}`,
+      );
     }
     return (await res.json()) as T;
   }
@@ -203,6 +258,40 @@ export class BookOrbitClient {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state),
+    });
+  }
+
+  getUploadCapabilities(): Promise<BookOrbitUploadCapabilities> {
+    return this.#request<BookOrbitUploadCapabilities>('/api/v1/uploads/capabilities');
+  }
+
+  createUploadSession(request: BookOrbitUploadSessionCreate): Promise<BookOrbitUploadSession> {
+    return this.#request<BookOrbitUploadSession>('/api/v1/uploads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+  }
+
+  getUploadSession(id: string): Promise<BookOrbitUploadSession> {
+    return this.#request<BookOrbitUploadSession>(`/api/v1/uploads/${id}`);
+  }
+
+  /** Chunks are strictly sequential: `offset` must be the session's `receivedBytes`. */
+  appendUploadChunk(id: string, offset: number, chunk: Blob): Promise<BookOrbitUploadSession> {
+    const body = new FormData();
+    body.append('file', chunk, 'chunk');
+    return this.#request<BookOrbitUploadSession>(`/api/v1/uploads/${id}/chunks`, {
+      method: 'POST',
+      headers: { 'Upload-Offset': String(offset) },
+      body,
+    });
+  }
+
+  /** Starts the import; the session then reports `processing` until it is done. */
+  completeUploadSession(id: string): Promise<BookOrbitUploadSession> {
+    return this.#request<BookOrbitUploadSession>(`/api/v1/uploads/${id}/complete`, {
+      method: 'POST',
     });
   }
 

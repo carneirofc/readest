@@ -31,6 +31,7 @@ import { useDeviceControlStore } from '@/store/deviceStore';
 import { useFoliateEvents } from '../../hooks/useFoliateEvents';
 import { useRendererInputListeners } from '../../hooks/useRendererInputListeners';
 import { useBookOrbitNotesSync } from '../../hooks/useBookOrbitNotesSync';
+import { useBookOrbitPushBook } from '../../hooks/useBookOrbitPushBook';
 import { useNotesSync } from '../../hooks/useNotesSync';
 import { useReadwiseSync } from '../../hooks/useReadwiseSync';
 import { useHardcoverSync } from '../../hooks/useHardcoverSync';
@@ -157,6 +158,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
 
   useNotesSync(bookKey);
   useBookOrbitNotesSync(bookKey);
+  useBookOrbitPushBook(bookKey);
   useReadwiseSync(bookKey);
   useHardcoverSync(bookKey);
   usePageboundSync(bookKey);

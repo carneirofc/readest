@@ -7,6 +7,9 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useSettingsStore } from '@/store/settingsStore';
 import { eventDispatcher } from '@/utils/event';
 import { BookOrbitClient } from '@/services/bookorbit/BookOrbitClient';
+import { createBookOrbitClient } from '@/services/bookorbit/createClient';
+import type { BookOrbitUploadCapabilities } from '@/services/bookorbit/client';
+import { isWebAppPlatform } from '@/services/environment';
 import { KOSyncStrategy } from '@/types/settings';
 import { debounce } from '@/utils/debounce';
 import { getOSPlatform } from '@/utils/misc';
@@ -76,6 +79,23 @@ const BookOrbitForm: React.FC<BookOrbitFormProps> = ({ onBack }) => {
   }, [settings.bookorbit.deviceName, osName]);
 
   const isConfigured = useMemo(() => !!settings.bookorbit.userkey, [settings.bookorbit.userkey]);
+
+  // "Push Book" needs a target library; only worth asking when there are several.
+  const [uploadLibraries, setUploadLibraries] = useState<BookOrbitUploadCapabilities['libraries']>(
+    [],
+  );
+  const canPushBooks = isConfigured && !!settings.bookorbit.password && !isWebAppPlatform();
+  useEffect(() => {
+    if (!canPushBooks) return;
+    let cancelled = false;
+    createBookOrbitClient()
+      ?.getUploadCapabilities()
+      .then(({ libraries }) => !cancelled && setUploadLibraries(libraries))
+      .catch((error) => console.warn('[BookOrbit] upload capabilities failed', error));
+    return () => {
+      cancelled = true;
+    };
+  }, [canPushBooks, settings.bookorbit.serverUrl]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedSaveDeviceName = useCallback(
@@ -191,6 +211,14 @@ const BookOrbitForm: React.FC<BookOrbitFormProps> = ({ onBack }) => {
     await saveSettings(envConfig, newSettings);
   };
 
+  const handleUploadLibraryChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const uploadLibraryId = e.target.value ? Number(e.target.value) : undefined;
+    const bookorbit = { ...settings.bookorbit, uploadLibraryId };
+    const newSettings = { ...settings, bookorbit };
+    setSettings(newSettings);
+    await saveSettings(envConfig, newSettings);
+  };
+
   const handleStrategyChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const bookorbit = { ...settings.bookorbit, strategy: e.target.value as KOSyncStrategy };
     const newSettings = { ...settings, bookorbit };
@@ -261,6 +289,19 @@ const BookOrbitForm: React.FC<BookOrbitFormProps> = ({ onBack }) => {
               checked={settings.bookorbit.syncBookStates}
               onChange={handleToggleField('syncBookStates')}
             />
+            {uploadLibraries.length > 1 && (
+              <SettingsRow label={_('Push Books To')}>
+                <SettingsSelect
+                  value={String(settings.bookorbit.uploadLibraryId ?? '')}
+                  onChange={handleUploadLibraryChange}
+                  ariaLabel={_('Push Books To')}
+                  options={[
+                    { value: '', label: _('Choose a library'), disabled: true },
+                    ...uploadLibraries.map((l) => ({ value: String(l.id), label: l.name })),
+                  ]}
+                />
+              </SettingsRow>
+            )}
             <SettingsRow label={_('Device Name')} className='-me-2'>
               <input
                 type='text'

@@ -124,6 +124,8 @@ export interface BookOrbitSettings {
    * option existed keep the automatic pushes they already had.
    */
   autoSync?: boolean;
+  /** Library "Push to BookOrbit" uploads into, when the account has several. */
+  uploadLibraryId?: number;
 }
 
 export interface ReadwiseSettings {

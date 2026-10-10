@@ -147,6 +147,14 @@ const BookMenu: React.FC<BookMenuProps> = ({ menuClassName, setIsDropdownOpen })
   const pageboundLink = sideBarBookKey ? getConfig(sideBarBookKey)?.pagebound : undefined;
   const pageboundEnabled = !!(settings.pagebound?.enabled && settings.pagebound.refreshToken);
   const bookOrbitProgressSync = settings.bookorbit.enabled && settings.bookorbit.syncProgress;
+  // Uploads go through BookOrbit's main API, which the web build cannot reach
+  // (no CORS, and the /api/bookorbit proxy only relays the KOReader API).
+  const bookOrbitPushBook =
+    settings.bookorbit.enabled && !!settings.bookorbit.serverUrl && !isWebAppPlatform();
+  const handlePushBookOrbitBook = () => {
+    eventDispatcher.dispatch('bookorbit-push-book', { bookKey: sideBarBookKey });
+    setIsDropdownOpen?.(false);
+  };
   // Routed through Annotator (per-book, long-lived) so that the
   // confirmation dialog isn't unmounted with the dropdown menu.
   const handleClearAnnotations = () => {
@@ -204,6 +212,7 @@ const BookMenu: React.FC<BookMenuProps> = ({ menuClassName, setIsDropdownOpen })
         ))}
       {(settings.kosync.enabled ||
         bookOrbitProgressSync ||
+        bookOrbitPushBook ||
         settings.readwise.enabled ||
         settings.hardcover.enabled ||
         pageboundEnabled ||
@@ -218,11 +227,26 @@ const BookMenu: React.FC<BookMenuProps> = ({ menuClassName, setIsDropdownOpen })
           </ul>
         </MenuItem>
       )}
-      {bookOrbitProgressSync && (
+      {(bookOrbitProgressSync || bookOrbitPushBook) && (
         <MenuItem label={_('BookOrbit Sync')} detailsOpen={false} buttonClass='py-2'>
           <ul className='flex flex-col ps-1'>
-            <MenuItem label={_('Push Progress')} noIcon onClick={handlePushKOSync('bookorbit')} />
-            <MenuItem label={_('Pull Progress')} noIcon onClick={handlePullKOSync('bookorbit')} />
+            {bookOrbitProgressSync && (
+              <>
+                <MenuItem
+                  label={_('Push Progress')}
+                  noIcon
+                  onClick={handlePushKOSync('bookorbit')}
+                />
+                <MenuItem
+                  label={_('Pull Progress')}
+                  noIcon
+                  onClick={handlePullKOSync('bookorbit')}
+                />
+              </>
+            )}
+            {bookOrbitPushBook && (
+              <MenuItem label={_('Push Book')} noIcon onClick={handlePushBookOrbitBook} />
+            )}
           </ul>
         </MenuItem>
       )}
