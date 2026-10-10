@@ -102,15 +102,25 @@ pkgbuild_packages() {
 # makepkg runs on a copy of packaging/arch in $ARCH_BUILD_DIR (default
 # ~/.cache/arch-build/<repository>), so the pkgver it writes back and its src/, pkg/ and
 # clones stay out of the checkout, and later builds reuse the clone. The PKGBUILD clones
-# $PKG_SOURCE, which defaults to this checkout (its committed HEAD); set PKG_SOURCE=
-# (empty) to build the PKGBUILD's own default source instead.
+# $PKG_SOURCE, which defaults to this checkout's committed HEAD; set PKG_SOURCE= (empty)
+# to build the PKGBUILD's own default source instead.
 package_arch() {
   [[ -f $ARCH_RECIPE/PKGBUILD ]] || die "no packaging/arch/PKGBUILD in $ROOT"
   require_command makepkg pacman
   local stage=${ARCH_BUILD_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/arch-build/${ROOT##*/}}
-  local source=${PKG_SOURCE-file://$ROOT}
-  if [[ $source == "file://$ROOT" && -n $(git -C "$ROOT" status --porcelain) ]]; then
-    warn "uncommitted changes are not packaged: makepkg builds the committed HEAD"
+  local source
+  if [[ -v PKG_SOURCE ]]; then
+    source=$PKG_SOURCE
+    # makepkg refuses a cached clone of another URL ("is not a clone of"), so each
+    # source gets its own stage.
+    [[ -n ${ARCH_BUILD_DIR:-} ]] || stage+=-$(printf '%s' "$source" | md5sum | cut -c1-8)
+  else
+    # Pinned to the commit: without it makepkg builds its cached clone's HEAD, which is
+    # the branch checked out when that clone was made, not the one checked out now.
+    source=file://$ROOT#commit=$(git -C "$ROOT" rev-parse HEAD)
+    if [[ -n $(git -C "$ROOT" status --porcelain) ]]; then
+      warn "uncommitted changes are not packaged: makepkg builds the committed HEAD"
+    fi
   fi
 
   log "packaging/arch -> $stage"
