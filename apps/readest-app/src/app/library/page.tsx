@@ -57,6 +57,7 @@ import { useLibraryFileSync } from './hooks/useLibraryFileSync';
 import { useBookTransferActions } from './hooks/useBookTransferActions';
 import { useAbsOfflineDownload } from './hooks/useAbsOfflineDownload';
 import { useAutoImportFolders } from './hooks/useAutoImportFolders';
+import { createWatchedFolderFilter } from '@/services/watchedFolderRules';
 import { useInboxDrainer } from '@/hooks/useInboxDrainer';
 import { useOPDSSubscriptions } from '@/hooks/useOPDSSubscriptions';
 import { useABSSync } from '@/hooks/useABSSync';
@@ -132,8 +133,21 @@ import TransferQueuePanel from './components/TransferQueuePanel';
 
 /** Skip tiny non-book artifacts during folder auto-scan (matches the manual import dialog default). */
 const AUTO_IMPORT_MIN_SIZE_BYTES = 20 * 1024;
+/**
+ * Most new files one watched folder may auto-import in a single scan. A larger
+ * burst almost always means the folder is misconfigured (a cache or
+ * scraper-output tree, a whole disk) rather than a few freshly added books, and
+ * importing it silently floods the library until the app freezes. Such a
+ * folder is skipped with a warning; the user can still import it explicitly
+ * from Import from Folder, or tighten its rules.
+ */
+const AUTO_IMPORT_MAX_NEW_FILES = 200;
 
 const IMPORT_CONCURRENCY = 4;
+// Imported books reach the store at most this many at a time, or after this
+// long, whichever comes first (see importBooksRun).
+const IMPORT_STORE_BATCH_SIZE = 50;
+const IMPORT_STORE_FLUSH_INTERVAL_MS = 300;
 // How often the library index is persisted during a long import (#5601). A
 // crash/kill mid-run loses at most this much work instead of the entire run;
 // keep it long enough that the full-library serialization stays a rounding
@@ -338,6 +352,9 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   // Tracks paths that failed to import in this session so auto-import does not
   // re-attempt (and re-toast) them on every subsequent folder scan.
   const autoImportFailedPathsRef = useRef<Set<string>>(new Set());
+  // Watched folders already warned about this session for exceeding
+  // AUTO_IMPORT_MAX_NEW_FILES, so the warning fires once, not on every focus.
+  const autoImportBurstWarnedRef = useRef<Set<string>>(new Set());
   // Folders whose fs/asset scopes were already granted this session. Each
   // `allowPathsInScopes` call makes tauri-plugin-persisted-scope rewrite its
   // whole state file on the main thread, so grant once, not on every focus
@@ -1035,16 +1052,36 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       await currentAppService.saveLibraryBooks(currentLibrary);
     }, IMPORT_CHECKPOINT_INTERVAL_MS);
 
+    // Completed books stream into the store in small batches so the shelf
+    // still renders incrementally. Every store update copies and re-indexes
+    // the whole library, so one update per book makes a bulk import quadratic
+    // and froze the app at ~15k books.
+    let pendingBooks: Book[] = [];
+    let lastStoreFlush = Date.now();
+    const flushPendingBooks = async () => {
+      if (pendingBooks.length === 0) return;
+      const batch = pendingBooks;
+      pendingBooks = [];
+      lastStoreFlush = Date.now();
+      await updateBooks(envConfig, batch, { skipSave: true });
+      checkpoint.touch();
+    };
+
     // A true worker pool (not the old barrier batches of 4): a slow file no
-    // longer stalls three finished siblings, and each completed book streams
-    // into the store immediately so the shelf renders incrementally.
+    // longer stalls three finished siblings.
     await runWithConcurrency(files, IMPORT_CONCURRENCY, async (selectedFile) => {
       const book = await processFile(selectedFile);
       if (book) {
-        await updateBooks(envConfig, [book], { skipSave: true });
-        checkpoint.touch();
+        pendingBooks.push(book);
+        if (
+          pendingBooks.length >= IMPORT_STORE_BATCH_SIZE ||
+          Date.now() - lastStoreFlush >= IMPORT_STORE_FLUSH_INTERVAL_MS
+        ) {
+          await flushPendingBooks();
+        }
       }
     });
+    await flushPendingBooks();
 
     // Persist whatever the last checkpoint hasn't covered.
     if (successfulImports.length > 0) {
@@ -1108,8 +1145,13 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           autoImportGrantedFoldersRef.current.add(folder);
         }
         const items = await appService.readDirectory(folder, 'None', SUPPORTED_BOOK_EXTS);
+        // Read from the live store: a scan fired by window focus can run well
+        // after the rules were edited, with a stale closure.
+        const keepFile = createWatchedFolderFilter(
+          useSettingsStore.getState().settings.autoImportRules?.[folder],
+        );
         const entries = items
-          .filter((item) => !isInHiddenDir(item.path))
+          .filter((item) => !isInHiddenDir(item.path) && keepFile(item.path))
           .map((item) => ({
             fullPath: joinScannedPath(folder, item.path),
             size: item.size,
@@ -1120,6 +1162,26 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           existingPaths,
           osPlatform,
         });
+        if (fresh.length > AUTO_IMPORT_MAX_NEW_FILES) {
+          console.warn(
+            `Auto-import: skipping ${folder}, ${fresh.length} new files exceed the limit of ${AUTO_IMPORT_MAX_NEW_FILES}`,
+          );
+          if (!autoImportBurstWarnedRef.current.has(folder)) {
+            autoImportBurstWarnedRef.current.add(folder);
+            eventDispatcher.dispatch('toast', {
+              message: _(
+                'Auto-import skipped "{{folder}}": {{count}} new files found. Review the folder\'s rules, or import it from Import from Folder.',
+                {
+                  folder: getFilename(folder.replace(/[\\/]+$/, '')) || folder,
+                  count: fresh.length,
+                },
+              ),
+              timeout: 10000,
+              type: 'warning',
+            });
+          }
+          continue;
+        }
         // Reproduce the folder's own "Folder Structure" choice: unless it was
         // imported flat, each file carries the watched folder as `basePath` so
         // `importBooks` seats the book in the group its subfolder implies —
@@ -1547,6 +1609,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     flatten: (settings.autoImportFlattenFolders ?? []).some(
       (r) => normalizeRoot(r) === normalizeRoot(path),
     ),
+    rules: settings.autoImportRules?.[path] ?? '',
   }));
 
   const isFlattenedAutoImportFolder = (directory: string): boolean => {
@@ -1647,12 +1710,43 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       ...liveSettings,
       autoImportFolders: next,
       autoImportFlattenFolders: nextFlatten,
+      // Rules belong to a watched folder; drop them with it so re-watching the
+      // same path later doesn't silently revive an old ignore list.
+      ...(!enabled && liveSettings.autoImportRules
+        ? {
+            autoImportRules: Object.fromEntries(
+              Object.entries(liveSettings.autoImportRules).filter(
+                ([path]) => normalizeRoot(path) !== target,
+              ),
+            ),
+          }
+        : {}),
     };
     setSettings(nextSettings);
     try {
       await saveSettings(envConfig, nextSettings);
     } catch (e) {
       console.error('Failed to persist autoImportFolders update:', e);
+    }
+  };
+
+  /**
+   * Replace the include/ignore rules (`.gitignore` syntax) of the watched
+   * folder at `directory` and persist. An empty text removes the entry. The
+   * next scan picks them up; books already in the library are left alone.
+   */
+  const setAutoImportFolderRules = async (directory: string, rules: string): Promise<void> => {
+    const liveSettings = useSettingsStore.getState().settings;
+    const { [directory]: _previous, ...others } = liveSettings.autoImportRules ?? {};
+    const nextSettings = {
+      ...liveSettings,
+      autoImportRules: rules.trim() ? { ...others, [directory]: rules } : others,
+    };
+    setSettings(nextSettings);
+    try {
+      await saveSettings(envConfig, nextSettings);
+    } catch (e) {
+      console.error('Failed to persist autoImportRules update:', e);
     }
   };
 
@@ -2160,6 +2254,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           onSetWatchedFolderFlatten={(path, flatten) =>
             void setAutoImportFolder(path, true, flatten)
           }
+          onSetWatchedFolderRules={(path, rules) => void setAutoImportFolderRules(path, rules)}
           onPickDirectory={pickImportDirectory}
           onCancel={() => setImportFromFolderState(null)}
           onConfirm={(result) => {

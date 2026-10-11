@@ -34,8 +34,8 @@ vi.mock('@/components/Dialog', () => ({
 }));
 
 const WATCHED: WatchedFolder[] = [
-  { path: '/Users/me/Books', flatten: false },
-  { path: '/Users/me/Comics', flatten: true },
+  { path: '/Users/me/Books', flatten: false, rules: '' },
+  { path: '/Users/me/Comics', flatten: true, rules: 'cache/' },
 ];
 
 const setup = (overrides: Partial<React.ComponentProps<typeof ImportFromFolderDialog>> = {}) => {
@@ -49,6 +49,7 @@ const setup = (overrides: Partial<React.ComponentProps<typeof ImportFromFolderDi
     onConfirm: vi.fn(),
     onUnwatchFolder: vi.fn(),
     onSetWatchedFolderFlatten: vi.fn(),
+    onSetWatchedFolderRules: vi.fn(),
     ...overrides,
   };
   const utils = render(<ImportFromFolderDialog {...props} />);
@@ -136,5 +137,42 @@ describe('Import-from-Folder dialog: watched folders pane', () => {
 
     fireEvent.click(screen.getByText('OK'));
     expect(props.onConfirm).toHaveBeenCalledWith(expect.objectContaining({ flatten: true }));
+  });
+
+  it('keeps the rules editor closed until asked, and open for a folder that has rules', () => {
+    setup();
+    openPane();
+
+    // Books has no rules (editor collapsed); Comics has some (editor open).
+    expect(screen.getAllByLabelText('Include/ignore rules')).toHaveLength(1);
+    expect(screen.getAllByText('Include/ignore rules')).toHaveLength(1);
+    expect((screen.getByLabelText('Include/ignore rules') as HTMLTextAreaElement).value).toBe(
+      'cache/',
+    );
+  });
+
+  it('commits edited rules for the right folder on blur, not per keystroke', () => {
+    const { props } = setup();
+    openPane();
+
+    // Open the Books folder's editor (the only collapsed one).
+    fireEvent.click(screen.getByText('Include/ignore rules'));
+    const editors = screen.getAllByLabelText('Include/ignore rules') as HTMLTextAreaElement[];
+    const books = editors.find((el) => el.value === '')!;
+
+    fireEvent.change(books, { target: { value: '!*.html\n' } });
+    expect(props.onSetWatchedFolderRules).not.toHaveBeenCalled();
+
+    fireEvent.blur(books);
+    expect(props.onSetWatchedFolderRules).toHaveBeenCalledWith('/Users/me/Books', '!*.html\n');
+  });
+
+  it('does not report a commit when the rules are unchanged', () => {
+    const { props } = setup();
+    openPane();
+
+    fireEvent.blur(screen.getByLabelText('Include/ignore rules'));
+
+    expect(props.onSetWatchedFolderRules).not.toHaveBeenCalled();
   });
 });

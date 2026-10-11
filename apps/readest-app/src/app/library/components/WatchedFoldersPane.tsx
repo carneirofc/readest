@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { IoMdCloseCircleOutline } from 'react-icons/io';
 import { MdArrowBackIosNew, MdArrowForwardIos } from 'react-icons/md';
 
@@ -16,6 +16,8 @@ export interface WatchedFolder {
    * root ("Import all into library"); `false` mirrors its subfolders as groups.
    */
   flatten: boolean;
+  /** The folder's include/ignore rules text (`.gitignore` syntax); '' when none. */
+  rules: string;
 }
 
 interface WatchedFoldersPaneProps {
@@ -24,7 +26,57 @@ interface WatchedFoldersPaneProps {
   /** Stop auto-importing from `path`. The folder stays readable in place. */
   onUnwatch: (path: string) => void;
   onSetFlatten: (path: string, flatten: boolean) => void;
+  onSetRules: (path: string, rules: string) => void;
 }
+
+/**
+ * Collapsible rules editor for one watched folder. The draft is committed on
+ * blur, not per keystroke, so typing doesn't write settings to disk each time.
+ */
+const FolderRules: React.FC<{ rules: string; onCommit: (rules: string) => void }> = ({
+  rules,
+  onCommit,
+}) => {
+  const _ = useTranslation();
+  const [open, setOpen] = useState(rules.trim().length > 0);
+  const [draft, setDraft] = useState(rules);
+
+  return (
+    <div className='flex flex-col gap-1.5 pb-2 pe-2'>
+      <button
+        type='button'
+        onClick={() => setOpen((v) => !v)}
+        className='text-base-content/75 w-fit text-start text-[0.85em] underline-offset-2 hover:underline'
+        aria-expanded={open}
+      >
+        {open ? _('Hide include/ignore rules') : _('Include/ignore rules')}
+      </button>
+      {open && (
+        <>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={() => {
+              if (draft !== rules) onCommit(draft);
+            }}
+            rows={4}
+            spellCheck={false}
+            autoCapitalize='off'
+            autoCorrect='off'
+            aria-label={_('Include/ignore rules')}
+            placeholder={'cache/\n*.draft.epub\n!important.html'}
+            className='textarea textarea-bordered eink-bordered w-full font-mono text-[0.85em] leading-snug'
+          />
+          <span className='text-base-content/65 text-[0.8em] leading-snug'>
+            {_(
+              'One pattern per line, like .gitignore: # comment, ! re-includes, trailing / matches folders. Web pages (.html, .htm, .mhtml) are ignored unless you add !*.html.',
+            )}
+          </span>
+        </>
+      )}
+    </div>
+  );
+};
 
 /**
  * Sub-page of the Import-from-Folder dialog listing every folder the user has
@@ -40,6 +92,7 @@ const WatchedFoldersPane: React.FC<WatchedFoldersPaneProps> = ({
   onBack,
   onUnwatch,
   onSetFlatten,
+  onSetRules,
 }) => {
   const _ = useTranslation();
   const isRtl = getDirFromUILanguage() === 'rtl';
@@ -76,31 +129,37 @@ const WatchedFoldersPane: React.FC<WatchedFoldersPaneProps> = ({
       ) : (
         <BoxedList>
           {folders.map((folder) => (
-            <div key={folder.path} className='flex items-center gap-2 py-2 pe-2'>
-              <div className='min-w-0 flex-1'>
-                <div className='truncate font-medium' title={folder.path}>
-                  {getFilename(folder.path) || folder.path}
+            <div key={folder.path} className='flex flex-col'>
+              <div className='flex items-center gap-2 py-2 pe-2'>
+                <div className='min-w-0 flex-1'>
+                  <div className='truncate font-medium' title={folder.path}>
+                    {getFilename(folder.path) || folder.path}
+                  </div>
+                  <div className='text-base-content/65 truncate text-[0.85em]'>{folder.path}</div>
                 </div>
-                <div className='text-base-content/65 truncate text-[0.85em]'>{folder.path}</div>
+                <SettingsSelect
+                  value={folder.flatten ? 'flatten' : 'keep'}
+                  onChange={(e) => onSetFlatten(folder.path, e.target.value === 'flatten')}
+                  options={[
+                    { value: 'keep', label: _('Groups') },
+                    { value: 'flatten', label: _('Flat') },
+                  ]}
+                  ariaLabel={_('Folder Structure')}
+                />
+                <button
+                  type='button'
+                  onClick={() => onUnwatch(folder.path)}
+                  className='btn btn-ghost btn-sm shrink-0 px-1'
+                  aria-label={_('Stop watching')}
+                  title={_('Stop watching')}
+                >
+                  <IoMdCloseCircleOutline className='text-base-content/75 h-5 w-5' />
+                </button>
               </div>
-              <SettingsSelect
-                value={folder.flatten ? 'flatten' : 'keep'}
-                onChange={(e) => onSetFlatten(folder.path, e.target.value === 'flatten')}
-                options={[
-                  { value: 'keep', label: _('Groups') },
-                  { value: 'flatten', label: _('Flat') },
-                ]}
-                ariaLabel={_('Folder Structure')}
+              <FolderRules
+                rules={folder.rules}
+                onCommit={(rules) => onSetRules(folder.path, rules)}
               />
-              <button
-                type='button'
-                onClick={() => onUnwatch(folder.path)}
-                className='btn btn-ghost btn-sm shrink-0 px-1'
-                aria-label={_('Stop watching')}
-                title={_('Stop watching')}
-              >
-                <IoMdCloseCircleOutline className='text-base-content/75 h-5 w-5' />
-              </button>
             </div>
           ))}
         </BoxedList>

@@ -449,6 +449,15 @@ export interface SystemSettings {
    * {@link autoImportFolders}.
    */
   autoImportFlattenFolders?: string[];
+  /**
+   * Per-folder `.gitignore`-style include/ignore rules for the files a watched
+   * folder auto-imports, keyed by the path exactly as stored in
+   * {@link autoImportFolders}. Absent or empty means only the built-in default
+   * (web-page formats ignored) applies. Syntax and defaults live in
+   * `services/watchedFolderRules`. Device-local, and excluded from cloud
+   * settings backups alongside {@link autoImportFolders}.
+   */
+  autoImportRules?: Record<string, string>;
 
   keepLogin: boolean;
   alwaysOnTop: boolean;

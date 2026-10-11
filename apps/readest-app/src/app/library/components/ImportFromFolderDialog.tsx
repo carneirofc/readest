@@ -145,6 +145,8 @@ interface ImportFromFolderDialogProps {
   onUnwatchFolder?: (path: string) => void;
   /** Change the folder structure future auto-imports from `path` use. */
   onSetWatchedFolderFlatten?: (path: string, flatten: boolean) => void;
+  /** Replace the include/ignore rules future auto-imports from `path` use. */
+  onSetWatchedFolderRules?: (path: string, rules: string) => void;
   /**
    * Pop the platform's native folder picker and return the chosen path,
    * or `undefined` when the user cancels. Required because folder
@@ -183,6 +185,7 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
   watchedFolders = [],
   onUnwatchFolder,
   onSetWatchedFolderFlatten,
+  onSetWatchedFolderRules,
   onPickDirectory,
   onCancel,
   onConfirm,
@@ -346,6 +349,7 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
             if (isCurrentDirectory(path)) setFolderMode(flatten ? 'flatten' : 'keep');
             onSetWatchedFolderFlatten?.(path, flatten);
           }}
+          onSetRules={(path, rules) => onSetWatchedFolderRules?.(path, rules)}
         />
       </Dialog>
     );
