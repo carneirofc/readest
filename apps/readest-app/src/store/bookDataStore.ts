@@ -17,8 +17,8 @@ import { useLibraryStore } from './libraryStore';
 // session — directly responsible for the swipe jank the user is reporting
 // (touchmove gets queued behind IPC processing).
 //
-// The library array itself is updated immutably via setLibrary on every save
-// (see `setLibrary(newLibrary)` below) so in-memory state and zustand
+// The library array itself is updated immutably via moveBookToFront on every save
+// (see saveConfig below) so in-memory state and zustand
 // subscribers see the change immediately. Disk persistence can be deferred:
 // progress is also stored in each book's own config.json (which we still
 // write every time), so even if the app dies between throttle ticks the
@@ -146,7 +146,7 @@ export const useBookDataStore = create<BookDataState>((set, get) => ({
     settings: SystemSettings,
   ) => {
     const appService = await envConfig.getAppService();
-    const { library, hashIndex, setLibrary } = useLibraryStore.getState();
+    const { library, hashIndex, moveBookToFront } = useLibraryStore.getState();
     const hash = bookKey.split('-')[0]!;
     const idx = hashIndex.get(hash);
     if (idx === undefined) return;
@@ -154,7 +154,9 @@ export const useBookDataStore = create<BookDataState>((set, get) => ({
     // Immutably move the book to the front of the library with updated
     // progress and timestamps. We do NOT mutate the existing book object or
     // the existing library array — Zustand subscribers see fresh references
-    // and the visibleLibrary cache stays in sync via setLibrary's full update.
+    // and the visibleLibrary cache stays in sync. moveBookToFront rather than
+    // setLibrary: this runs on every page turn, and setLibrary's group and
+    // cover recomputation scales with the whole library.
     const now = Date.now();
     const original = library[idx]!;
     const updatedBook: Book = {
@@ -163,8 +165,7 @@ export const useBookDataStore = create<BookDataState>((set, get) => ({
       updatedAt: now,
       downloadedAt: original.downloadedAt || now,
     };
-    const newLibrary = [updatedBook, ...library.slice(0, idx), ...library.slice(idx + 1)];
-    setLibrary(newLibrary);
+    moveBookToFront(updatedBook);
 
     // Refresh updatedAt immutably via the store rather than mutating the
     // caller-provided object. This notifies Zustand subscribers and works

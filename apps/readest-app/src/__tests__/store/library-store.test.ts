@@ -458,6 +458,57 @@ describe('libraryStore', () => {
       expect(names).toContain('Fiction');
       expect(names).toContain('Fiction/Sci-Fi');
     });
+
+    test('keeps the groups reference when the groups did not change', () => {
+      useLibraryStore.setState({ library: [makeBook({ hash: 'a', groupName: 'Fiction' })] });
+      useLibraryStore.getState().refreshGroups();
+      const before = useLibraryStore.getState().groups;
+
+      useLibraryStore.setState({
+        library: [
+          makeBook({ hash: 'a', groupName: 'Fiction' }),
+          makeBook({ hash: 'b', groupName: 'Fiction' }),
+        ],
+      });
+      useLibraryStore.getState().refreshGroups();
+
+      expect(useLibraryStore.getState().groups).toBe(before);
+    });
+  });
+
+  describe('moveBookToFront', () => {
+    test('puts the updated book first and keeps the index and visible list in sync', () => {
+      const groups = { md5_Fiction: 'Fiction' };
+      useLibraryStore.setState({ groups });
+      useLibraryStore
+        .getState()
+        .setLibrary([
+          makeBook({ hash: 'a' }),
+          makeBook({ hash: 'b', deletedAt: 5 }),
+          makeBook({ hash: 'c', groupName: 'Fiction' }),
+        ]);
+      const groupsBefore = useLibraryStore.getState().groups;
+
+      useLibraryStore
+        .getState()
+        .moveBookToFront(makeBook({ hash: 'c', groupName: 'Fiction', progress: [3, 10] }));
+
+      const state = useLibraryStore.getState();
+      expect(state.library.map((b) => b.hash)).toEqual(['c', 'a', 'b']);
+      expect(state.getBookByHash('c')?.progress).toEqual([3, 10]);
+      expect(state.getBookByHash('b')?.hash).toBe('b');
+      expect(state.visibleLibrary.map((b) => b.hash)).toEqual(['c', 'a']);
+      expect(state.groups).toBe(groupsBefore);
+    });
+
+    test('ignores a book that is not in the library', () => {
+      useLibraryStore.getState().setLibrary([makeBook({ hash: 'a' })]);
+      const before = useLibraryStore.getState().library;
+
+      useLibraryStore.getState().moveBookToFront(makeBook({ hash: 'zzz' }));
+
+      expect(useLibraryStore.getState().library).toBe(before);
+    });
   });
 
   describe('addGroup', () => {

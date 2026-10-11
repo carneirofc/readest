@@ -11,10 +11,17 @@ import type { AppService } from '@/types/system';
 import type { Book } from '@/types/book';
 import { buildAbsBookMetadata, makeAbsFilePath, parseAbsFilePath } from '@/utils/audiobook';
 import { getCoverFilename } from '@/utils/book';
+import { runWithConcurrency } from '@/utils/concurrency';
 import { md5 } from '@/utils/md5';
 import { stubTranslation as _, uniqueId } from '@/utils/misc';
 import { findABSServerById, useABSServerStore } from '@/store/absServerStore';
 import { useLibraryStore } from '@/store/libraryStore';
+
+/** Covers fetched in parallel: enough to hide latency without hammering the server. */
+const COVER_CONCURRENCY = 4;
+
+/** A server synced more recently than this is skipped by non-forced (automatic) passes. */
+export const ABS_SYNC_FRESH_MS = 15 * 60 * 1000;
 
 /** Number of audio tracks a library item carries, from whichever field the server populated. */
 const audioTrackCount = (item: ABSLibraryItem): number =>
@@ -261,13 +268,16 @@ export const fetchAbsBookCover = async (appService: AppService, book: Book): Pro
 export const backfillAbsCovers = async (appService: AppService): Promise<void> => {
   const { library } = useLibraryStore.getState();
   const replaced = new Map<string, Book>();
-  for (const book of library) {
-    if (book.deletedAt) continue;
-    const clone = { ...book };
-    if (await fetchAbsBookCover(appService, clone)) {
-      replaced.set(book.hash, clone);
-    }
-  }
+  await runWithConcurrency(
+    library.filter((book) => !book.deletedAt),
+    COVER_CONCURRENCY,
+    async (book) => {
+      const clone = { ...book };
+      if (await fetchAbsBookCover(appService, clone)) {
+        replaced.set(book.hash, clone);
+      }
+    },
+  );
   if (replaced.size === 0) return;
   // Re-read the store: the downloads above are async and a concurrent sync
   // may have swapped the library array since the first read.
@@ -318,33 +328,53 @@ export const syncAbsServer = async (appService: AppService, server: ABSServer): 
   // mutating book.coverHash/coverImageUrl here is safe, and the merge below
   // picks up the fully-populated objects in one shot instead of needing a
   // second setLibrary/saveLibraryBooks pass.
-  for (const book of upserts) {
+  await runWithConcurrency(upserts, COVER_CONCURRENCY, async (book) => {
     const parsed = parseAbsFilePath(book.filePath);
-    if (!parsed) continue;
-    if (await appService.exists(getCoverFilename(book), 'Books')) continue;
+    if (!parsed) return;
+    if (await appService.exists(getCoverFilename(book), 'Books')) return;
     await downloadAbsCover(appService, client, book, parsed.itemId);
-  }
+  });
 
-  const merged = new Map(library.map((book) => [book.hash, book]));
-  for (const book of upserts) merged.set(book.hash, book);
-  for (const hash of tombstoneHashes) {
-    const existing = merged.get(hash);
-    if (existing) merged.set(hash, { ...existing, deletedAt: now });
-  }
-  const newLibrary = Array.from(merged.values());
+  // An unchanged server must not rewrite the whole library: the store update
+  // re-fires every library-change effect (cloud/file sync) and the save is a
+  // full-file write.
+  if (upserts.length > 0 || tombstoneHashes.length > 0) {
+    // Merge into the live library, not the pre-fetch snapshot: the requests
+    // above are slow and the user may have edited or read a book meanwhile.
+    const merged = new Map(
+      useLibraryStore.getState().library.map((book) => [book.hash, book] as const),
+    );
+    for (const book of upserts) merged.set(book.hash, book);
+    for (const hash of tombstoneHashes) {
+      const existing = merged.get(hash);
+      if (existing) merged.set(hash, { ...existing, deletedAt: now });
+    }
+    const newLibrary = Array.from(merged.values());
 
-  useLibraryStore.getState().setLibrary(newLibrary);
-  await appService.saveLibraryBooks(newLibrary);
+    useLibraryStore.getState().setLibrary(newLibrary);
+    await appService.saveLibraryBooks(newLibrary);
+  }
 
   useABSServerStore.getState().updateServer(server.id, { lastSyncedAt: now });
   await useABSServerStore.getState().saveABSServers(toEnvConfig(appService));
 };
 
-export const syncAllAbsServers = async (appService: AppService): Promise<void> => {
+/**
+ * Sync every enabled server, one at a time (each pass writes the whole
+ * library). Unless `force`, a server synced within {@link ABS_SYNC_FRESH_MS}
+ * is skipped, so startup and the background interval stay cheap; an explicit
+ * "Sync now" passes `force`.
+ */
+export const syncAllAbsServers = async (
+  appService: AppService,
+  { force = false }: { force?: boolean } = {},
+): Promise<void> => {
+  const now = Date.now();
   const servers = useABSServerStore
     .getState()
     .getAvailableServers()
-    .filter((s) => !s.disabled);
+    .filter((s) => !s.disabled)
+    .filter((s) => force || !s.lastSyncedAt || now - s.lastSyncedAt >= ABS_SYNC_FRESH_MS);
   for (const server of servers) {
     try {
       await syncAbsServer(appService, server);

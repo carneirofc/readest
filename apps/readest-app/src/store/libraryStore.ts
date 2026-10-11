@@ -40,6 +40,7 @@ interface LibraryState {
     progress: [number, number],
     readingStatus: ReadingStatus | undefined,
   ) => void;
+  moveBookToFront: (book: Book) => void;
   updateBook: (envConfig: EnvConfigType, book: Book) => Promise<void>;
   updateBooks: (
     envConfig: EnvConfigType,
@@ -56,6 +57,26 @@ interface LibraryState {
   getParentPath: (path: string) => string | undefined;
   getGroupsByParent: (parentPath?: string) => BookGroupType[];
 }
+
+// refreshGroups runs on every library change and fingerprints each grouped
+// book's group name and all its parent paths. A library holds few distinct
+// group names, so cache the fingerprints instead of re-hashing per book: on a
+// 15k-book library that was 15k+ MD5s on the main thread per update.
+const groupIdCache = new Map<string, string>();
+const groupIdOf = (groupName: string): string => {
+  let id = groupIdCache.get(groupName);
+  if (id === undefined) {
+    id = md5Fingerprint(groupName);
+    groupIdCache.set(groupName, id);
+  }
+  return id;
+};
+
+const sameGroups = (a: Record<string, string>, b: Record<string, string>): boolean => {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((key) => b[key] === a[key]);
+};
 
 function buildHashIndex(books: Book[]): Map<string, number> {
   const index = new Map<string, number>();
@@ -154,6 +175,21 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     });
   },
 
+  // Reader progress save: put `book` (already in the library) at the front.
+  // Unlike setLibrary it skips group and cover-thumbnail recomputation, since
+  // neither a book's group nor its cover changes on a page turn.
+  moveBookToFront: (book) => {
+    const { library, hashIndex } = get();
+    const idx = hashIndex.get(book.hash);
+    if (idx === undefined) return;
+    const newLibrary = [book, ...library.slice(0, idx), ...library.slice(idx + 1)];
+    set({
+      library: newLibrary,
+      hashIndex: buildHashIndex(newLibrary),
+      visibleLibrary: newLibrary.filter((b) => !b.deletedAt),
+    });
+  },
+
   rebuildHashIndex: () => {
     set({ hashIndex: buildHashIndex(get().library) });
   },
@@ -238,17 +274,19 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
     library.forEach((book) => {
       if (book.groupName && book.groupName !== BOOK_UNGROUPED_NAME && !book.deletedAt) {
-        groups[md5Fingerprint(book.groupName)] = book.groupName;
+        groups[groupIdOf(book.groupName)] = book.groupName;
         let nextSlashIndex = book.groupName.indexOf('/', 0);
         while (nextSlashIndex > 0) {
           const groupName = book.groupName.substring(0, nextSlashIndex);
-          groups[md5Fingerprint(groupName)] = groupName;
+          groups[groupIdOf(groupName)] = groupName;
           nextSlashIndex = book.groupName.indexOf('/', nextSlashIndex + 1);
         }
       }
     });
 
-    set({ groups });
+    // Keep the old reference when nothing changed, so group subscribers don't
+    // re-render on every progress save or imported book.
+    if (!sameGroups(groups, get().groups)) set({ groups });
   },
 
   addGroup: (name: string) => {

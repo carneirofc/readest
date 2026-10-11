@@ -131,6 +131,45 @@ describe('backfillAbsCovers', () => {
     expect(appService.saveLibraryBooks).not.toHaveBeenCalled();
   });
 
+  it('downloads covers concurrently, bounded, and persists them in one save', async () => {
+    const books = Array.from({ length: 12 }, (_, i) => makeAbsBook(`item${i}`));
+    useLibraryStore.setState({ library: books });
+    const appService = makeAppService(false);
+    let inFlight = 0;
+    let peak = 0;
+    mockedDownloadFile.mockImplementation((async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+    }) as never);
+
+    await backfillAbsCovers(appService);
+
+    expect(mockedDownloadFile).toHaveBeenCalledTimes(12);
+    expect(peak).toBeGreaterThan(1);
+    expect(peak).toBeLessThanOrEqual(4);
+    expect(appService.saveLibraryBooks).toHaveBeenCalledTimes(1);
+    const saved = vi.mocked(appService.saveLibraryBooks).mock.calls[0]![0] as Book[];
+    expect(saved.every((b) => b.coverHash === 'new-cover-hash')).toBe(true);
+  });
+
+  it('keeps the covers that succeeded when one download fails', async () => {
+    const books = [makeAbsBook('ok1'), makeAbsBook('bad'), makeAbsBook('ok2')];
+    useLibraryStore.setState({ library: books });
+    const appService = makeAppService(false);
+    mockedDownloadFile.mockImplementation((async ({ url }: { url: string }) => {
+      if (url.includes('/bad/')) throw new Error('offline');
+    }) as never);
+
+    await backfillAbsCovers(appService);
+
+    const byHash = new Map(useLibraryStore.getState().library.map((b) => [b.hash, b]));
+    expect(byHash.get('hash-ok1')?.coverHash).toBe('new-cover-hash');
+    expect(byHash.get('hash-bad')?.coverHash).toBeUndefined();
+    expect(byHash.get('hash-ok2')?.coverHash).toBe('new-cover-hash');
+  });
+
   it('leaves the library untouched when the download fails', async () => {
     mockedDownloadFile.mockRejectedValue(new Error('offline'));
     const book = makeAbsBook('item1');

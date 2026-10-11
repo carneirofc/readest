@@ -27,7 +27,7 @@ import { backfillAbsCovers, syncAllAbsServers } from '@/services/audiobookshelf/
 import { useABSServerStore } from '@/store/absServerStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { eventDispatcher } from '@/utils/event';
-import { useABSSync } from '@/hooks/useABSSync';
+import { ABS_STARTUP_DELAY_MS, useABSSync } from '@/hooks/useABSSync';
 
 const mockedSync = vi.mocked(syncAllAbsServers);
 const mockedBackfill = vi.mocked(backfillAbsCovers);
@@ -48,14 +48,16 @@ const makeSettings = (overrides: Partial<SystemSettings> = {}): SystemSettings =
     ...overrides,
   }) as unknown as SystemSettings;
 
+// The startup refresh is deferred so the shelf (and a book open) is never
+// competing with it; `settle` plays out that delay plus the async chain.
 const settle = async () => {
   await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(ABS_STARTUP_DELAY_MS + 1);
   });
 };
 
 beforeEach(() => {
+  vi.useFakeTimers();
   useABSServerStore.setState({ servers: [] });
   useSettingsStore.setState({
     settings: makeSettings(),
@@ -66,6 +68,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.clearAllMocks();
   useABSServerStore.setState({ servers: [] });
 });
@@ -80,7 +83,7 @@ describe('useABSSync', () => {
     await settle();
 
     expect(mockedSync).toHaveBeenCalledTimes(1);
-    expect(mockedSync).toHaveBeenCalledWith(appService);
+    expect(mockedSync).toHaveBeenCalledWith(appService, { force: false });
   });
 
   test('backfills covers before the authenticated sync so a failing login cannot block them', async () => {
@@ -122,7 +125,7 @@ describe('useABSSync', () => {
 
     expect(useABSServerStore.getState().getAvailableServers()).toEqual([server]);
     expect(mockedSync).toHaveBeenCalledTimes(1);
-    expect(mockedSync).toHaveBeenCalledWith(appService);
+    expect(mockedSync).toHaveBeenCalledWith(appService, { force: false });
   });
 
   // `EnvProvider` publishes `appService` BEFORE `appService.loadSettings()`
@@ -163,27 +166,93 @@ describe('useABSSync', () => {
   });
 
   test('unmount clears the interval', async () => {
-    vi.useFakeTimers();
+    useABSServerStore.setState({ servers: [server] });
+    useSettingsStore.setState({ settings: makeSettings({ absServers: [server] }) });
+    mockedSync.mockResolvedValue();
+
+    const { unmount } = renderHook(() => useABSSync());
+    await settle();
+    expect(mockedSync).toHaveBeenCalledTimes(1);
+
+    unmount();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+    });
+
+    expect(mockedSync).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not sync before the startup delay elapses', async () => {
+    useABSServerStore.setState({ servers: [server] });
+    mockedSync.mockResolvedValue();
+
+    renderHook(() => useABSSync());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ABS_STARTUP_DELAY_MS - 1);
+    });
+
+    expect(mockedSync).not.toHaveBeenCalled();
+    expect(mockedBackfill).not.toHaveBeenCalled();
+  });
+
+  test('unmount before the startup delay cancels the pending sync', async () => {
+    useABSServerStore.setState({ servers: [server] });
+    mockedSync.mockResolvedValue();
+
+    const { unmount } = renderHook(() => useABSSync());
+    unmount();
+    await settle();
+
+    expect(mockedSync).not.toHaveBeenCalled();
+  });
+
+  test('an explicit sync request runs immediately and forces past the freshness window', async () => {
+    useABSServerStore.setState({ servers: [server] });
+    mockedSync.mockResolvedValue();
+
+    renderHook(() => useABSSync());
+    await act(async () => {
+      await eventDispatcher.dispatch('sync-abs-servers');
+    });
+
+    expect(mockedSync).toHaveBeenCalledTimes(1);
+    expect(mockedSync).toHaveBeenCalledWith(appService, { force: true });
+  });
+
+  test('interval ticks sync without forcing and skip the full-library cover backfill', async () => {
+    useABSServerStore.setState({ servers: [server] });
+    mockedSync.mockResolvedValue();
+
+    renderHook(() => useABSSync());
+    await settle();
+    expect(mockedBackfill).toHaveBeenCalledTimes(1);
+    mockedBackfill.mockClear();
+    mockedSync.mockClear();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+    });
+
+    expect(mockedSync).toHaveBeenCalledWith(appService, { force: false });
+    expect(mockedBackfill).not.toHaveBeenCalled();
+  });
+
+  test('interval ticks do nothing while the document is hidden', async () => {
+    useABSServerStore.setState({ servers: [server] });
+    mockedSync.mockResolvedValue();
+
+    renderHook(() => useABSSync());
+    await settle();
+    mockedSync.mockClear();
+
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
     try {
-      useABSServerStore.setState({ servers: [server] });
-      useSettingsStore.setState({ settings: makeSettings({ absServers: [server] }) });
-      mockedSync.mockResolvedValue();
-
-      const { unmount } = renderHook(() => useABSSync());
       await act(async () => {
-        await Promise.resolve();
-        await Promise.resolve();
+        await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
       });
-      expect(mockedSync).toHaveBeenCalledTimes(1);
-
-      unmount();
-      await act(async () => {
-        vi.advanceTimersByTime(5 * 60 * 1000);
-      });
-
-      expect(mockedSync).toHaveBeenCalledTimes(1);
+      expect(mockedSync).not.toHaveBeenCalled();
     } finally {
-      vi.useRealTimers();
+      hidden.mockRestore();
     }
   });
 });
